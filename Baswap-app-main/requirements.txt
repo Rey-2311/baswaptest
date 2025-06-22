@@ -1,0 +1,10 @@
+pytz
+requests
+streamlit
+altair
+torch
+pytorch_lightning
+torchmetrics
+scikit-learn==1.5.2
+google-api-python-client
+google-auth
