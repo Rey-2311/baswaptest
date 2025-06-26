@@ -4,6 +4,46 @@ from datetime import datetime
 # Must be the very first Streamlit command
 st.set_page_config(page_title="BASWAP-APP", page_icon="💧", layout="wide")
 
+def render_header():
+    st.markdown(
+        """
+        <style>
+          .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid #ddd;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 1.75rem;
+          }
+          .nav-links a {
+            margin: 0 0.75rem;
+            color: inherit;
+            text-decoration: none;
+            font-weight: 500;
+          }
+          .nav-links a:hover {
+            text-decoration: underline;
+          }
+        </style>
+        <div class="header">
+          <h1>BASWAP</h1>
+          <div class="nav-links">
+            <a href="#overview">Overview</a>
+            <a href="#about">About</a>
+          </div>
+          <!-- Streamlit Cloud will auto-render the Sign In button here -->
+          <div></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+render_header()
+
 from data import combined_data_retrieve, thingspeak_retrieve
 from sidebar import sidebar_inputs
 from aggregation import filter_data, apply_aggregation
