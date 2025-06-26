@@ -8,7 +8,14 @@ def render_header():
     st.markdown(
         """
         <style>
+          /* 1. Make the header fixed & full-width */
           .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 100;
+            background-color: white;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -28,20 +35,28 @@ def render_header():
           .nav-links a:hover {
             text-decoration: underline;
           }
+
+          /* 2. Push down all app content so it’s not hidden under the header */
+          /*    Adjust the padding-top to match your header’s height (~3rem) */
+          .appview-container .main {
+            padding-top: 3.5rem;
+          }
         </style>
+
         <div class="header">
           <h1>BASWAP</h1>
           <div class="nav-links">
             <a href="#overview">Overview</a>
             <a href="#about">About</a>
           </div>
-          <!-- Streamlit Cloud will auto-render the Sign In button here -->
+          <!-- This empty div is where Streamlit’s Sign in/out widget will render -->
           <div></div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
+# ─── call right after your st.set_page_config ───
 render_header()
 
 from data import combined_data_retrieve, thingspeak_retrieve
