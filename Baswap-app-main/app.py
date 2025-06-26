@@ -8,13 +8,14 @@ def render_header():
     st.markdown(
         """
         <style>
-          /* Sticky header — no JS needed */
+          /* 1) Fixed header, visible by default */
           .header {
-            position: sticky;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
-            background-color: #f0f2f6;
+            background-color: #f0f2f6;  /* light grey so you can actually see it */
+            transition: top 0.3s ease;
             z-index: 100;
             display: flex;
             align-items: center;
@@ -23,9 +24,14 @@ def render_header():
             border-bottom: 1px solid #ddd;
           }
 
-          /* Push the page content down so nothing is covered */
+          /* 2) When this class is toggled, slide it up out of view */
+          .header-hidden {
+            top: -4rem;  /* adjust if your header’s taller/shorter */
+          }
+
+          /* 3) Push all the Streamlit “main” content down so it’s never under our header */
           .appview-container .main {
-            padding-top: 4rem;
+            padding-top: 4rem;  /* should match the header height + padding */
           }
 
           .header h1 {
@@ -43,14 +49,32 @@ def render_header():
           }
         </style>
 
-        <div class="header">
+        <div class="header" id="custom-header">
           <h1>BASWAP</h1>
           <div class="nav-links">
             <a href="#overview">Overview</a>
             <a href="#about">About</a>
           </div>
-          <div></div>  <!-- Sign-in widget placeholder -->
+          <!-- Streamlit’s Sign in/out button will render here automatically -->
+          <div></div>
         </div>
+
+        <script>
+          // Hide-on-scroll-down / show-on-scroll-up
+          let prevScroll = window.pageYOffset;
+          window.onscroll = function() {
+            const header = document.getElementById("custom-header");
+            let currentScroll = window.pageYOffset;
+            if (prevScroll > currentScroll) {
+              // scrolling up
+              header.classList.remove("header-hidden");
+            } else {
+              // scrolling down
+              header.classList.add("header-hidden");
+            }
+            prevScroll = currentScroll;
+          }
+        </script>
         """,
         unsafe_allow_html=True,
     )
