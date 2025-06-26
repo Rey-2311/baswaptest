@@ -8,13 +8,12 @@ def render_header():
     st.markdown(
         """
         <style>
-          /* 1) Fixed header, visible by default */
           .header {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
-            background-color: #f0f2f6;  /* light grey so you can actually see it */
+            background-color: #f0f2f6;
             transition: top 0.3s ease;
             z-index: 100;
             display: flex;
@@ -23,29 +22,29 @@ def render_header():
             padding: 0.5rem 1rem;
             border-bottom: 1px solid #ddd;
           }
-
-          /* 2) When this class is toggled, slide it up out of view */
-          .header-hidden {
-            top: -4rem;  /* adjust if your header’s taller/shorter */
+          /* Force title + links to black */
+          .header h1,
+          .nav-links a {
+            color: #000 !important;
           }
-
-          /* 3) Push all the Streamlit “main” content down so it’s never under our header */
-          .appview-container .main {
-            padding-top: 4rem;  /* should match the header height + padding */
-          }
-
           .header h1 {
             margin: 0;
             font-size: 1.75rem;
           }
           .nav-links a {
             margin: 0 0.75rem;
-            color: inherit;
             text-decoration: none;
             font-weight: 500;
+            cursor: pointer;       /* show clickable cursor */
           }
           .nav-links a:hover {
             text-decoration: underline;
+          }
+          .header-hidden {
+            top: -4rem;
+          }
+          .appview-container .main {
+            padding-top: 4rem;
           }
         </style>
 
@@ -55,21 +54,17 @@ def render_header():
             <a href="#overview">Overview</a>
             <a href="#about">About</a>
           </div>
-          <!-- Streamlit’s Sign in/out button will render here automatically -->
           <div></div>
         </div>
 
         <script>
-          // Hide-on-scroll-down / show-on-scroll-up
           let prevScroll = window.pageYOffset;
           window.onscroll = function() {
             const header = document.getElementById("custom-header");
             let currentScroll = window.pageYOffset;
             if (prevScroll > currentScroll) {
-              // scrolling up
               header.classList.remove("header-hidden");
             } else {
-              // scrolling down
               header.classList.add("header-hidden");
             }
             prevScroll = currentScroll;
@@ -78,6 +73,7 @@ def render_header():
         """,
         unsafe_allow_html=True,
     )
+
 
 render_header()
 from data import combined_data_retrieve, thingspeak_retrieve
