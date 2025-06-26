@@ -8,20 +8,32 @@ def render_header():
     st.markdown(
         """
         <style>
-          /* 1. Make the header fixed & full-width */
+          /* 1) Fixed header, visible by default */
           .header {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
+            background-color: #f0f2f6;  /* light grey so you can actually see it */
+            transition: top 0.3s ease;
             z-index: 100;
-            background-color: white;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0.5rem 1rem;
             border-bottom: 1px solid #ddd;
           }
+
+          /* 2) When this class is toggled, slide it up out of view */
+          .header-hidden {
+            top: -4rem;  /* adjust if your header’s taller/shorter */
+          }
+
+          /* 3) Push all the Streamlit “main” content down so it’s never under our header */
+          .appview-container .main {
+            padding-top: 4rem;  /* should match the header height + padding */
+          }
+
           .header h1 {
             margin: 0;
             font-size: 1.75rem;
@@ -35,30 +47,39 @@ def render_header():
           .nav-links a:hover {
             text-decoration: underline;
           }
-
-          /* 2. Push down all app content so it’s not hidden under the header */
-          /*    Adjust the padding-top to match your header’s height (~3rem) */
-          .appview-container .main {
-            padding-top: 3.5rem;
-          }
         </style>
 
-        <div class="header">
+        <div class="header" id="custom-header">
           <h1>BASWAP</h1>
           <div class="nav-links">
             <a href="#overview">Overview</a>
             <a href="#about">About</a>
           </div>
-          <!-- This empty div is where Streamlit’s Sign in/out widget will render -->
+          <!-- Streamlit’s Sign in/out button will render here automatically -->
           <div></div>
         </div>
+
+        <script>
+          // Hide-on-scroll-down / show-on-scroll-up
+          let prevScroll = window.pageYOffset;
+          window.onscroll = function() {
+            const header = document.getElementById("custom-header");
+            let currentScroll = window.pageYOffset;
+            if (prevScroll > currentScroll) {
+              // scrolling up
+              header.classList.remove("header-hidden");
+            } else {
+              // scrolling down
+              header.classList.add("header-hidden");
+            }
+            prevScroll = currentScroll;
+          }
+        </script>
         """,
         unsafe_allow_html=True,
     )
 
-# ─── call right after your st.set_page_config ───
 render_header()
-
 from data import combined_data_retrieve, thingspeak_retrieve
 from sidebar import sidebar_inputs
 from aggregation import filter_data, apply_aggregation
