@@ -22,58 +22,61 @@ def render_header():
             padding: 0.5rem 1rem;
             border-bottom: 1px solid #ddd;
           }
-          /* Force title + links to black */
-          .header h1,
-          .nav-links a {
-            color: #000 !important;
-          }
-          .header h1 {
-            margin: 0;
-            font-size: 1.75rem;
-          }
-          .nav-links a {
-            margin: 0 0.75rem;
-            text-decoration: none;
-            font-weight: 500;
-            cursor: pointer;       /* show clickable cursor */
-          }
-          .nav-links a:hover {
-            text-decoration: underline;
-          }
           .header-hidden {
             top: -4rem;
           }
           .appview-container .main {
             padding-top: 4rem;
           }
+
+          /* Force black text for your title and links */
+          .header h1,
+          .header a.nav-link {
+            color: #000 !important;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 1.75rem;
+            cursor: pointer;      /* so you can add an onclick later */
+          }
+
+          /* Style your links as clickable pills */
+          .header a.nav-link {
+            margin: 0 0.75rem;
+            padding: 0.25rem 0.5rem;
+            text-decoration: none;
+            font-weight: 500;
+            border-radius: 0.25rem;
+            transition: background 0.2s;
+          }
+          .header a.nav-link:hover {
+            background: rgba(0,0,0,0.1);
+          }
         </style>
 
         <div class="header" id="custom-header">
-          <h1>BASWAP</h1>
-          <div class="nav-links">
-            <a href="#overview">Overview</a>
-            <a href="#about">About</a>
+          <h1 id="logo">BASWAP</h1>
+          <div>
+            <a class="nav-link" href="#overview">Overview</a>
+            <a class="nav-link" href="#about">About</a>
           </div>
-          <div></div>
+          <div></div> <!-- Sign-in widget -->
         </div>
 
         <script>
+          // hide-on-scroll / show-on-scroll
           let prevScroll = window.pageYOffset;
           window.onscroll = function() {
             const header = document.getElementById("custom-header");
-            let currentScroll = window.pageYOffset;
-            if (prevScroll > currentScroll) {
-              header.classList.remove("header-hidden");
-            } else {
-              header.classList.add("header-hidden");
-            }
-            prevScroll = currentScroll;
+            let current = window.pageYOffset;
+            if (prevScroll > current) header.classList.remove("header-hidden");
+            else header.classList.add("header-hidden");
+            prevScroll = current;
           }
         </script>
         """,
         unsafe_allow_html=True,
     )
-
 
 render_header()
 from data import combined_data_retrieve, thingspeak_retrieve
