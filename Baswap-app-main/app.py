@@ -15,7 +15,7 @@ header { visibility: hidden; }
 .custom-header {
     position: fixed;
     top: 0; left: 0; right: 0;
-    height: 3.9rem;
+    height: 4.5rem;            
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -25,40 +25,35 @@ header { visibility: hidden; }
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     z-index: 1000;
 }
-
 .custom-header .logo {
-    font-size: 1.43rem;
+    font-size: 1.65rem;          
     font-weight: 600;
     color: #000;
 }
-
 .custom-header .nav {
     display: flex;
     gap: 1rem;
 }
-
 .custom-header .nav a {
     text-decoration: none;
     color: #262730;
-    font-size: 1.17rem;
+    font-size: 0.9rem;
     padding-bottom: 0.25rem;
     border-bottom: 2px solid transparent;
 }
-
 .custom-header .nav a:hover {
     border-bottom-color: #262730;
 }
-
 .custom-header .nav a.active {
     color: #09c;
     border-bottom-color: #09c;
 }
-
 body > .main {
-    margin-top: 4.55rem;
+    margin-top: 5rem;            
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 
