@@ -1,5 +1,6 @@
 import streamlit as st
-import pydeck as pdk
+import folium
+from streamlit_folium import st_folium
 from datetime import datetime
 from data import combined_data_retrieve, thingspeak_retrieve
 from sidebar import sidebar_inputs
@@ -54,13 +55,15 @@ body > .main {
 </style>
 """, unsafe_allow_html=True)
 
-qs   = st.query_params
-page = qs.get("page",  "Overview")
-lang = qs.get("lang",  "vi")
-if page not in ("Overview", "About"): page = "Overview"
-if lang not in ("en", "vi"):       lang = "vi"
+qs = st.query_params
+page = qs.get("page", "Overview")
+lang = qs.get("lang", "vi")
+if page not in ("Overview", "About"):
+    page = "Overview"
+if lang not in ("en", "vi"):
+    lang = "vi"
 
-toggle_lang  = "en" if lang=="vi" else "vi"
+toggle_lang = "en" if lang == "vi" else "vi"
 toggle_label = APP_TEXTS[lang]["toggle_button"]
 
 st.markdown(f"""
@@ -79,19 +82,8 @@ st.markdown(f"""
 texts = APP_TEXTS[lang]
 
 if page == "Overview":
-    st.pydeck_chart(
-        pdk.Deck(
-            map_style="open-street-map",
-            initial_view_state=pdk.ViewState(
-                latitude=10.231140,
-                longitude=105.980999,
-                zoom=8,
-                pitch=0,
-            ),
-            layers=[]
-        ),
-        use_container_width=True
-    )
+    m = folium.Map(location=[10.231140, 105.980999], zoom_start=8)
+    st_folium(m, width="100%", height=400)
 
     st.title(texts["app_title"])
     st.markdown(texts["description"])
@@ -99,11 +91,9 @@ if page == "Overview":
     df = combined_data_retrieve()
     df = thingspeak_retrieve(df)
     first_date = datetime(2025, 1, 17).date()
-    last_date  = df["Timestamp (GMT+7)"].max().date()
+    last_date = df["Timestamp (GMT+7)"].max().date()
 
-    date_from, date_to, target_col, agg_functions = sidebar_inputs(
-        df, lang, first_date, last_date
-    )
+    date_from, date_to, target_col, agg_functions = sidebar_inputs(df, lang, first_date, last_date)
     filtered_df = filter_data(df, date_from, date_to)
 
     display_statistics(filtered_df, target_col)
@@ -113,32 +103,20 @@ if page == "Overview":
         if resample_freq == "None":
             view_df = df.copy()
         else:
-            view_df = apply_aggregation(
-                df, selected_cols, target_col, resample_freq, agg_functions
-            )
+            view_df = apply_aggregation(df, selected_cols, target_col, resample_freq, agg_functions)
         plot_line_chart(view_df, target_col, resample_freq)
 
-    display_view(filtered_df, target_col,
-                 f"{texts['raw_view']} {target_col}", "None", COL_NAMES, agg_functions)
-    display_view(filtered_df, target_col,
-                 f"{texts['hourly_view']} {target_col}", "Hour", COL_NAMES, agg_functions)
-    display_view(filtered_df, target_col,
-                 f"{texts['daily_view']} {target_col}", "Day", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col, f"{texts['raw_view']} {target_col}", "None", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col, f"{texts['hourly_view']} {target_col}", "Hour", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col, f"{texts['daily_view']} {target_col}", "Day", COL_NAMES, agg_functions)
 
     st.subheader(texts["data_table"])
-    selected_table_cols = st.multiselect(
-        texts["columns_select"], options=COL_NAMES, default=COL_NAMES
-    )
+    selected_table_cols = st.multiselect(texts["columns_select"], options=COL_NAMES, default=COL_NAMES)
     selected_table_cols.insert(0, "Timestamp (GMT+7)")
     st.write(f"{texts['data_dimensions']} ({filtered_df.shape[0]}, {len(selected_table_cols)}).")
     st.dataframe(filtered_df[selected_table_cols], use_container_width=True)
 
-    st.button(
-        texts["clear_cache"],
-        help="This clears all cached data, ensuring the app fetches the latest available information.",
-        on_click=st.cache_data.clear
-    )
-
+    st.button(texts["clear_cache"], help="This clears all cached data, ensuring the app fetches the latest available information.", on_click=st.cache_data.clear)
 else:
     st.title("About")
     st.markdown("""
