@@ -15,7 +15,7 @@ header { visibility: hidden; }
 .custom-header {
     position: fixed;
     top: 0; left: 0; right: 0;
-    height: 3rem;
+    height: calc(3rem * 1.2);
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -25,34 +25,41 @@ header { visibility: hidden; }
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     z-index: 1000;
 }
+
 .custom-header .logo {
-    font-size: 1.1rem;
+    font-size: calc(1.1rem * 1.2);
     font-weight: 600;
     color: #000;
 }
+
 .custom-header .nav {
     display: flex;
     gap: 1rem;
 }
+
 .custom-header .nav a {
     text-decoration: none;
     color: #262730;
-    font-size: 0.9rem;
+    font-size: calc(0.9rem * 1.2);
     padding-bottom: 0.25rem;
     border-bottom: 2px solid transparent;
 }
+
 .custom-header .nav a:hover {
     border-bottom-color: #262730;
 }
+
 .custom-header .nav a.active {
     color: #09c;
     border-bottom-color: #09c;
 }
+
 body > .main {
-    margin-top: 3.5rem;
+    margin-top: calc(3.5rem * 1.2);
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 qs   = st.query_params
