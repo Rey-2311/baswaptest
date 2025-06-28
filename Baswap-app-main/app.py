@@ -1,13 +1,36 @@
 import json
 import streamlit as st
 from config import SECRET_ACC, COMBINED_ID
+from utils import DriveManager
+
+st.header("🔍 Debugging Secrets & Drive Access")
 
 st.write("SERVICE_ACCOUNT repr:", repr(SECRET_ACC))
 st.write("SERVICE_ACCOUNT length:", len(SECRET_ACC))
 st.text("SERVICE_ACCOUNT preview:")
 st.text(SECRET_ACC[:300])
+
 st.write("COMBINED_ID repr:", repr(COMBINED_ID))
 st.write("COMBINED_ID length:", len(COMBINED_ID))
+
+# 1) JSON parse test
+try:
+    info = json.loads(SECRET_ACC)
+    st.success(f"Parsed SERVICE_ACCOUNT JSON: client_email={info.get('client_email')}")
+except Exception as e:
+    st.error("SERVICE_ACCOUNT JSON parse error: " + str(e))
+
+# 2) Drive access test
+try:
+    drive = DriveManager(SECRET_ACC)
+    df_test = drive.read_csv_file(COMBINED_ID)
+    if df_test is None:
+        st.error("drive.read_csv_file returned None")
+    else:
+        st.success(f"Drive read_csv_file succeeded: {df_test.shape}")
+        st.write(df_test.head())
+except Exception as e:
+    st.error("Failed to load CSV from Drive: " + str(e))
 
 import folium
 from streamlit_folium import st_folium
