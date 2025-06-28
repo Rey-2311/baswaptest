@@ -11,6 +11,7 @@ st.set_page_config(page_title="BASWAP", page_icon="💧", layout="wide")
 st.markdown("""
 <style>
 header { visibility: hidden; }
+
 .custom-header {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -50,49 +51,46 @@ header { visibility: hidden; }
 body > .main {
     margin-top: 5rem;
 }
-.lang-toggle {
-    position: fixed;
-    top: 1rem;
-    right: 1rem;
-    z-index: 1001;
-}
 </style>
 """, unsafe_allow_html=True)
 
 qs = st.query_params
-page = qs.get("page", "Overview")
+page = qs.get("page", ["Overview"])[0]
 if page not in ("Overview", "About"):
     page = "Overview"
+lang = qs.get("lang", ["vi"])[0]
+if lang not in ("en", "vi"):
+    lang = "vi"
+toggle_lang = "en" if lang == "vi" else "vi"
+toggle_label = APP_TEXTS[lang]["toggle_button"]
 
 st.markdown(f"""
 <div class="custom-header">
   <div class="logo">BASWAP</div>
   <div class="nav">
-    <a href="?page=Overview" target="_self" class="{ 'active' if page=='Overview' else '' }">Overview</a>
-    <a href="?page=About"    target="_self" class="{ 'active' if page=='About'    else '' }">About</a>
+    <a href="?page=Overview&lang={lang}" target="_self" class="{'active' if page=='Overview' else ''}">Overview</a>
+    <a href="?page=About&lang={lang}"    target="_self" class="{'active' if page=='About'    else ''}">About</a>
+  </div>
+  <div class="nav" style="margin-left:auto;">
+    <a href="?page={page}&lang={toggle_lang}" target="_self">{toggle_label}</a>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="lang-toggle">', unsafe_allow_html=True)
-def update_language():
-    st.session_state.language = "vi" if st.session_state.language == "en" else "en"
-if "language" not in st.session_state:
-    st.session_state.language = "vi"
-lang = st.session_state.language
 texts = APP_TEXTS[lang]
-st.button(label=texts["toggle_button"], on_click=update_language, help=texts["toggle_tooltip"])
-st.markdown('</div>', unsafe_allow_html=True)
 
 if page == "Overview":
     st.title(texts["app_title"])
     st.markdown(texts["description"])
+
     df = combined_data_retrieve()
     df = thingspeak_retrieve(df)
     first_date = datetime(2025, 1, 17).date()
     last_date = df['Timestamp (GMT+7)'].max().date()
+
     date_from, date_to, target_col, agg_functions = sidebar_inputs(df, lang, first_date, last_date)
     filtered_df = filter_data(df, date_from, date_to)
+
     display_statistics(filtered_df, target_col)
 
     def display_view(df, target_col, view_title, resample_freq, selected_cols, agg_functions):
@@ -108,10 +106,11 @@ if page == "Overview":
     display_view(filtered_df, target_col, f"{texts['daily_view']} {target_col}", "Day", COL_NAMES, agg_functions)
 
     st.subheader(texts["data_table"])
-    table_cols = st.multiselect(texts["columns_select"], options=COL_NAMES, default=COL_NAMES)
-    table_cols.insert(0, "Timestamp (GMT+7)")
-    st.write(f"{texts['data_dimensions']} ({filtered_df.shape[0]}, {len(table_cols)}).")
-    st.dataframe(filtered_df[table_cols], use_container_width=True)
+    selected_table_cols = st.multiselect(texts["columns_select"], options=COL_NAMES, default=COL_NAMES)
+    selected_table_cols.insert(0, "Timestamp (GMT+7)")
+    st.write(f"{texts['data_dimensions']} ({filtered_df.shape[0]}, {len(selected_table_cols)}).")
+    st.dataframe(filtered_df[selected_table_cols], use_container_width=True)
+
     st.button(texts["clear_cache"], help="This clears all cached data.", on_click=st.cache_data.clear)
 
 else:
