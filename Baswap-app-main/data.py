@@ -11,6 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "u
 from utils import DriveManager
 
 def convert_utc_to_GMT7(timestamp):
+    """Convert UTC timestamp to GMT+7."""
     return timestamp.replace(tzinfo=UTC).astimezone(GMT7)
 
 @st.cache_data(ttl=86400)
@@ -18,13 +19,20 @@ def combined_data_retrieve():
     drive_handler = DriveManager(SECRET_ACC)
     df = drive_handler.read_csv_file(COMBINED_ID)
 
-    ts = pd.to_datetime(df["Timestamp (GMT+7)"], utc=True, errors="coerce")
+    ts = pd.to_datetime(
+        df["Timestamp (GMT+7)"],
+        utc=True,
+        errors="coerce"
+    )
+
     if ts.isna().any():
-        mask = ~ts.isna()
-        df = df.loc[mask].copy()
-        ts = ts.loc[mask]
+        df = df.loc[~ts.isna()].copy()
+        ts = ts.loc[~ts.isna()]
+
     df["Timestamp (GMT+7)"] = ts.dt.tz_convert("Asia/Bangkok")
+
     return df
+
 
 def fetch_thingspeak_data(results):
     url = f"{THINGSPEAK_URL}?results={results}"
@@ -37,6 +45,7 @@ def fetch_thingspeak_data(results):
 
 def append_new_data(df, feeds):
     last_timestamp = df.iloc[-1, 0]
+
     for feed in feeds:
         timestamp = feed.get("created_at", "")
         if not timestamp:
@@ -53,6 +62,7 @@ def append_new_data(df, feeds):
                 float(feed.get("field5", 0)),
                 int(feed.get("field3", 0)) / 2000,
             ]
+
     df = df.sort_values("Timestamp (GMT+7)").reset_index(drop=True)
     return df
 
