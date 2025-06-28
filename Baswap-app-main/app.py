@@ -1,21 +1,15 @@
 import streamlit as st
 from datetime import datetime
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 1) Your existing page config (must be first Streamlit call)
 st.set_page_config(
     page_title="BASWAP", 
     page_icon="💧", 
     layout="wide"
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 2) Inject CSS for a top nav bar
 st.markdown("""
 <style>
-/* hide default Streamlit header */
 header { visibility: hidden; }
-/* our custom header */
 .custom-header {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -57,15 +51,11 @@ body > .main {
 </style>
 """, unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 3) Read the current “page” from URL query-params
 qs = st.experimental_get_query_params()
 page = qs.get("page", ["Overview"])[0]
 if page not in ("Overview", "About"):
     page = "Overview"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 4) Render our header html
 st.markdown(f"""
 <div class="custom-header">
   <div class="logo">BASWAP</div>
@@ -76,8 +66,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 5) Page routing
 if page == "Overview":
     # … copy in all of your existing app.py “Overview” code here …
     st.title("Overview")
@@ -89,31 +77,21 @@ else:
     You can add team info, data sources, contact details, or whatever you like here.
     """)
 
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-render_header()
 from data import combined_data_retrieve, thingspeak_retrieve
 from sidebar import sidebar_inputs
 from aggregation import filter_data, apply_aggregation
 from plotting import plot_line_chart, display_statistics
 from config import COL_NAMES, APP_TEXTS
 
-# Define text dictionaries for English and Vietnamese, including toggle tooltip texts.
-
-
-# Callback function to update language immediately.
 def update_language():
     st.session_state.language = "vi" if st.session_state.language == "en" else "en"
     # st.rerun()
 
-# Initialize session state for language if not set.
 if "language" not in st.session_state:
     st.session_state.language = "vi"
 lang = st.session_state.language
 texts = APP_TEXTS[lang]
 
-# Add CSS to position the toggle button at the top right corner.
 st.markdown(
     """
     <style>
