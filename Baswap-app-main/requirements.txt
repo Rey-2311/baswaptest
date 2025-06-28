@@ -9,3 +9,5 @@ scikit-learn==1.5.2
 google-api-python-client
 google-auth
 pydeck
+folium
+streamlit-folium
