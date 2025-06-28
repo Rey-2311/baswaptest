@@ -18,8 +18,21 @@ def convert_utc_to_GMT7(timestamp):
 def combined_data_retrieve():
     drive_handler = DriveManager(SECRET_ACC)
     df = drive_handler.read_csv_file(COMBINED_ID)
-    df["Timestamp (GMT+7)"] = pd.to_datetime(df["Timestamp (GMT+7)"], utc=True).dt.tz_convert("Asia/Bangkok")
+
+    ts = pd.to_datetime(
+        df["Timestamp (GMT+7)"],
+        utc=True,
+        errors="coerce"
+    )
+
+    if ts.isna().any():
+        df = df.loc[~ts.isna()].copy()
+        ts = ts.loc[~ts.isna()]
+
+    df["Timestamp (GMT+7)"] = ts.dt.tz_convert("Asia/Bangkok")
+
     return df
+
 
 def fetch_thingspeak_data(results):
     url = f"{THINGSPEAK_URL}?results={results}"
