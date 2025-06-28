@@ -1,4 +1,5 @@
 import streamlit as st
+import pydeck as pdk
 from datetime import datetime
 from data import combined_data_retrieve, thingspeak_retrieve
 from sidebar import sidebar_inputs
@@ -8,7 +9,8 @@ from config import COL_NAMES, APP_TEXTS
 
 st.set_page_config(page_title="BASWAP", page_icon="💧", layout="wide")
 
-st.markdown("""<style>
+st.markdown("""
+<style>
 header { visibility: hidden; }
 .custom-header {
     position: fixed;
@@ -49,7 +51,8 @@ header { visibility: hidden; }
 body > .main {
     margin-top: 5rem;
 }
-</style>""", unsafe_allow_html=True)
+</style>
+""", unsafe_allow_html=True)
 
 qs = st.query_params
 page = qs.get("page", "Overview")
@@ -62,14 +65,34 @@ if lang not in ("en", "vi"):
 toggle_lang = "en" if lang == "vi" else "vi"
 toggle_label = APP_TEXTS[lang]["toggle_button"]
 
-st.markdown(f"""<div class="custom-header"><div class="logo">BASWAP</div><div class="nav"><a href="?page=Overview&lang={lang}" target="_self" class="{'active' if page=='Overview' else ''}">Overview</a><a href="?page=About&lang={lang}" target="_self" class="{'active' if page=='About' else ''}">About</a></div><div class="nav" style="margin-left:auto;"><a href="?page={page}&lang={toggle_lang}" target="_self">{toggle_label}</a></div></div>""", unsafe_allow_html=True)
-
-if page == "Overview":
-    st.markdown("<style>body > .main { margin-top: calc(100vh + 5rem); }</style>", unsafe_allow_html=True)
+st.markdown(f"""
+<div class="custom-header">
+  <div class="logo">BASWAP</div>
+  <div class="nav">
+    <a href="?page=Overview&lang={lang}" target="_self" class="{'active' if page=='Overview' else ''}">Overview</a>
+    <a href="?page=About&lang={lang}"    target="_self" class="{'active' if page=='About'    else ''}">About</a>
+  </div>
+  <div class="nav" style="margin-left:auto;">
+    <a href="?page={page}&lang={toggle_lang}" target="_self">{toggle_label}</a>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
 texts = APP_TEXTS[lang]
 
 if page == "Overview":
+    st.pydeck_chart(
+        pdk.Deck(
+            map_style="mapbox://styles/mapbox/light-v9",
+            initial_view_state=pdk.ViewState(
+                latitude=11.5,
+                longitude=107.5,
+                zoom=6,
+                pitch=0,
+            ),
+            layers=[]
+        )
+    )
     st.title(texts["app_title"])
     st.markdown(texts["description"])
     df = combined_data_retrieve()
@@ -97,4 +120,7 @@ if page == "Overview":
     st.button(texts["clear_cache"], help="This clears all cached data, ensuring the app fetches the latest available information.", on_click=st.cache_data.clear)
 else:
     st.title("About")
-    st.markdown("""**BASWAP** is a buoy-based water-quality monitoring dashboard for Vinh Long, Vietnam. You can add team info, data sources, contact details, or whatever you like here.""")
+    st.markdown("""
+**BASWAP** is a buoy-based water-quality monitoring dashboard for Vinh Long, Vietnam.
+You can add team info, data sources, contact details, or whatever you like here.
+""")
