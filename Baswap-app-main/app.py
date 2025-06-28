@@ -51,8 +51,8 @@ body > .main {
 </style>
 """, unsafe_allow_html=True)
 
-qs = st.experimental_get_query_params()
-page = qs.get("page", ["Overview"])[0]
+qs   = st.query_params
+page = qs.get("page", "Overview")
 if page not in ("Overview", "About"):
     page = "Overview"
 
