@@ -70,8 +70,8 @@ st.markdown(f"""
 <div class="custom-header">
   <div class="logo">BASWAP</div>
   <div class="nav">
-    <a href="?page=Overview" class="{ 'active' if page=='Overview' else '' }">Overview</a>
-    <a href="?page=About"    class="{ 'active' if page=='About'    else '' }">About</a>
+    <a href="?page=Overview" target="_self" class="{ 'active' if page=='Overview' else '' }">Overview</a>
+    <a href="?page=About"    target="_self" class="{ 'active' if page=='About'    else '' }">About</a>
   </div>
 </div>
 """, unsafe_allow_html=True)
