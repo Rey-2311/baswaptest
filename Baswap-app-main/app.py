@@ -15,7 +15,7 @@ header { visibility: hidden; }
 .custom-header {
     position: fixed;
     top: 0; left: 0; right: 0;
-    height: calc(3rem * 1.2);
+    height: 3.9rem;
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -27,7 +27,7 @@ header { visibility: hidden; }
 }
 
 .custom-header .logo {
-    font-size: calc(1.1rem * 1.2);
+    font-size: 1.43rem;
     font-weight: 600;
     color: #000;
 }
@@ -40,7 +40,7 @@ header { visibility: hidden; }
 .custom-header .nav a {
     text-decoration: none;
     color: #262730;
-    font-size: calc(0.9rem * 1.2);
+    font-size: 1.17rem;
     padding-bottom: 0.25rem;
     border-bottom: 2px solid transparent;
 }
@@ -55,10 +55,11 @@ header { visibility: hidden; }
 }
 
 body > .main {
-    margin-top: calc(3.5rem * 1.2);
+    margin-top: 4.55rem;
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 
