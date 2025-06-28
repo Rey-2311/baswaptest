@@ -1,82 +1,96 @@
 import streamlit as st
 from datetime import datetime
 
-# Must be the very first Streamlit command
-st.set_page_config(page_title="BASWAP-APP", page_icon="💧", layout="wide")
+# ─────────────────────────────────────────────────────────────────────────────
+# 1) Your existing page config (must be first Streamlit call)
+st.set_page_config(
+    page_title="BASWAP", 
+    page_icon="💧", 
+    layout="wide"
+)
 
-def render_header():
-    st.markdown(
-        """
-        <style>
-          .header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            background-color: #f0f2f6;
-            transition: top 0.3s ease;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.5rem 1rem;
-            border-bottom: 1px solid #ddd;
-          }
-          .header-hidden {
-            top: -4rem;
-          }
-          .appview-container .main {
-            padding-top: 4rem;
-          }
+# ─────────────────────────────────────────────────────────────────────────────
+# 2) Inject CSS for a top nav bar
+st.markdown("""
+<style>
+/* hide default Streamlit header */
+header { visibility: hidden; }
+/* our custom header */
+.custom-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    z-index: 1000;
+}
+.custom-header .logo {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+.custom-header .nav {
+    display: flex;
+    gap: 1rem;
+}
+.custom-header .nav a {
+    text-decoration: none;
+    color: #262730;
+    font-size: 0.9rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 2px solid transparent;
+}
+.custom-header .nav a:hover {
+    border-bottom-color: #262730;
+}
+.custom-header .nav a.active {
+    color: #09c;
+    border-bottom-color: #09c;
+}
+body > .main {
+    /* push all content below the header */
+    margin-top: 3.5rem;
+}
+</style>
+""", unsafe_allow_html=True)
 
-          /* Force black text for your title and links */
-          .header h1,
-          .header a.nav-link {
-            color: #000 !important;
-          }
-          .header h1 {
-            margin: 0;
-            font-size: 1.75rem;
-            cursor: pointer;      /* so you can add an onclick later */
-          }
+# ─────────────────────────────────────────────────────────────────────────────
+# 3) Read the current “page” from URL query-params
+qs = st.experimental_get_query_params()
+page = qs.get("page", ["Overview"])[0]
+if page not in ("Overview", "About"):
+    page = "Overview"
 
-          /* Style your links as clickable pills */
-          .header a.nav-link {
-            margin: 0 0.75rem;
-            padding: 0.25rem 0.5rem;
-            text-decoration: none;
-            font-weight: 500;
-            border-radius: 0.25rem;
-            transition: background 0.2s;
-          }
-          .header a.nav-link:hover {
-            background: rgba(0,0,0,0.1);
-          }
-        </style>
+# ─────────────────────────────────────────────────────────────────────────────
+# 4) Render our header html
+st.markdown(f"""
+<div class="custom-header">
+  <div class="logo">BASWAP</div>
+  <div class="nav">
+    <a href="?page=Overview" class="{ 'active' if page=='Overview' else '' }">Overview</a>
+    <a href="?page=About"    class="{ 'active' if page=='About'    else '' }">About</a>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
-        <div class="header" id="custom-header">
-          <h1 id="logo">BASWAP</h1>
-          <div>
-            <a class="nav-link" href="#overview">Overview</a>
-            <a class="nav-link" href="#about">About</a>
-          </div>
-          <div></div> <!-- Sign-in widget -->
-        </div>
+# ─────────────────────────────────────────────────────────────────────────────
+# 5) Page routing
+if page == "Overview":
+    # … copy in all of your existing app.py “Overview” code here …
+    st.title("Overview")
+    # e.g. your data fetch, charts, tables, etc.
+else:
+    st.title("About")
+    st.markdown("""
+    **BASWAP** is a buoy-based water-quality monitoring dashboard for Vinh Long, Vietnam.
+    You can add team info, data sources, contact details, or whatever you like here.
+    """)
 
-        <script>
-          // hide-on-scroll / show-on-scroll
-          let prevScroll = window.pageYOffset;
-          window.onscroll = function() {
-            const header = document.getElementById("custom-header");
-            let current = window.pageYOffset;
-            if (prevScroll > current) header.classList.remove("header-hidden");
-            else header.classList.add("header-hidden");
-            prevScroll = current;
-          }
-        </script>
-        """,
-        unsafe_allow_html=True,
-    )
+# ─────────────────────────────────────────────────────────────────────────────
+
 
 render_header()
 from data import combined_data_retrieve, thingspeak_retrieve
