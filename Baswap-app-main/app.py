@@ -1,4 +1,25 @@
+import json
 import streamlit as st
+from config import SECRET_ACC, COMBINED_ID
+from utils import DriveManager
+
+st.write("🔑 SERVICE_ACCOUNT present?", bool(SECRET_ACC))
+st.write("🆔 COMBINED_ID present?", bool(COMBINED_ID))
+
+try:
+    info = json.loads(SECRET_ACC)
+    st.write("✅ Parsed SERVICE_ACCOUNT JSON, client_email:", info.get("client_email"))
+except Exception as e:
+    st.error("❌ SERVICE_ACCOUNT is not valid JSON: " + str(e))
+
+try:
+    drive = DriveManager(SECRET_ACC)
+    df_test = drive.read_csv_file(COMBINED_ID)
+    st.write("✅ read_csv_file succeeded, DataFrame shape:", df_test.shape)
+    st.write(df_test.head())
+except Exception as e:
+    st.error("❌ Failed to load CSV from Drive: " + str(e))
+
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime
@@ -12,46 +33,45 @@ st.set_page_config(page_title="BASWAP", page_icon="💧", layout="wide")
 
 st.markdown("""
 <style>
-  header { visibility: hidden; }
-  .custom-header {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: 4.5rem;
-      display: flex;
-      align-items: center;
-      padding: 0 1rem;
-      background: #fff;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-      z-index: 1000;
-      gap: 2rem;
-  }
-  .custom-header .logo {
-      font-size: 1.65rem;
-      font-weight: 600;
-      color: #000;
-  }
-  .custom-header .nav {
-      display: flex;
-      gap: 1rem;
-  }
-  .custom-header .nav a {
-      text-decoration: none;
-      color: #262730;
-      font-size: 0.9rem;
-      border-bottom: 2px solid transparent;
-      padding-bottom: 0.25rem;
-  }
-  .custom-header .nav a.active {
-      color: #09c;
-      border-bottom-color: #09c;
-  }
-  .custom-header .nav a:hover {
-      border-bottom-color: #262730;
-  }
-  /* push all content down by the header’s exact height */
-  body > .main {
-      margin-top: 4.5rem;
-  }
+header { visibility: hidden; }
+.custom-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 4.5rem;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    z-index: 1000;
+    gap: 2rem;
+}
+.custom-header .logo {
+    font-size: 1.65rem;
+    font-weight: 600;
+    color: #000;
+}
+.custom-header .nav {
+    display: flex;
+    gap: 1rem;
+}
+.custom-header .nav a {
+    text-decoration: none;
+    color: #262730;
+    font-size: 0.9rem;
+    border-bottom: 2px solid transparent;
+    padding-bottom: 0.25rem;
+}
+.custom-header .nav a.active {
+    color: #09c;
+    border-bottom-color: #09c;
+}
+.custom-header .nav a:hover {
+    border-bottom-color: #262730;
+}
+body > .main {
+    margin-top: 4.5rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -128,7 +148,6 @@ if page == "Overview":
         help="This clears all cached data, ensuring the app fetches the latest available information.",
         on_click=st.cache_data.clear
     )
-
 else:
     st.title("About")
     st.markdown("""
