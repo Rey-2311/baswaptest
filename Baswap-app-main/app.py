@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 from datetime import datetime
 from data import combined_data_retrieve, thingspeak_retrieve
 from sidebar import sidebar_inputs
@@ -18,13 +17,11 @@ header { visibility: hidden; }
     height: 4.5rem;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
     gap: 2rem;
     padding: 0 1rem;
     background: #fff;
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     z-index: 1000;
-    transition: top 0.3s ease;
 }
 .custom-header .logo {
     font-size: 1.65rem;
@@ -49,14 +46,17 @@ header { visibility: hidden; }
     color: #09c;
     border-bottom-color: #09c;
 }
+.lang-toggle {
+    position: absolute;
+    top: 0;
+    right: 1rem;
+    height: 4.5rem;
+    display: flex;
+    align-items: center;
+    z-index: 1001;
+}
 body > .main {
     margin-top: 5rem;
-}
-.lang-toggle {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 100;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -73,25 +73,8 @@ st.markdown(f"""
     <a href="?page=Overview" target="_self" class="{ 'active' if page=='Overview' else '' }">Overview</a>
     <a href="?page=About"    target="_self" class="{ 'active' if page=='About'    else '' }">About</a>
   </div>
-</div>
+  <div class="lang-toggle">
 """, unsafe_allow_html=True)
-
-components.html("""
-<script>
-let prevScroll = window.pageYOffset;
-window.addEventListener('scroll', () => {
-  const curScroll = window.pageYOffset;
-  const header = document.querySelector('.custom-header');
-  if (!header) return;
-  if (curScroll > prevScroll) {
-    header.style.top = '-4.5rem';
-  } else {
-    header.style.top = '0';
-  }
-  prevScroll = curScroll;
-});
-</script>
-""", height=0)
 
 def update_language():
     st.session_state.language = "vi" if st.session_state.language == "en" else "en"
@@ -101,9 +84,8 @@ if "language" not in st.session_state:
 lang = st.session_state.language
 texts = APP_TEXTS[lang]
 
-st.markdown('<div class="lang-toggle">', unsafe_allow_html=True)
 st.button(label=texts["toggle_button"], on_click=update_language, help=texts["toggle_tooltip"])
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div></div>", unsafe_allow_html=True)
 
 if page == "Overview":
     st.title(texts["app_title"])
