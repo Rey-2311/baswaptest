@@ -2,7 +2,7 @@ import streamlit as st
 import base64
 import binascii
 
-from config import SERVICE_ACCOUNT, FILE_ID, APP_TEXTS, COL_NAMES
+from config import SECRET_ACC, COMBINED_ID, APP_TEXTS, COL_NAMES
 from utils.drive_handler import DriveManager
 import folium
 from streamlit_folium import st_folium
@@ -15,22 +15,22 @@ from plotting import plot_line_chart, display_statistics
 st.set_page_config(page_title="BASWAP", page_icon="💧", layout="wide")
 
 st.markdown("## 🔧 Secret Format Check")
-raw = SERVICE_ACCOUNT.strip()
-st.write("First 100 chars of SERVICE_ACCOUNT:", raw[:100])
+raw = SECRET_ACC.strip()
+st.write("First 100 chars of SECRET_ACC:", raw[:100])
 if raw.startswith("{") and raw.endswith("}"):
-    st.warning("SERVICE_ACCOUNT looks like raw JSON, not Base64!")
+    st.warning("SECRET_ACC looks like raw JSON, not Base64!")
 try:
     decoded = base64.b64decode(raw, validate=True)
-    st.success(f"SERVICE_ACCOUNT is valid Base64 (decoded length: {len(decoded)} bytes)")
+    st.success(f"SECRET_ACC is valid Base64 (decoded length: {len(decoded)} bytes)")
 except binascii.Error:
-    st.error("SERVICE_ACCOUNT is NOT valid Base64")
-st.write("FILE_ID:", FILE_ID)
+    st.error("SECRET_ACC is NOT valid Base64")
+st.write("COMBINED_ID:", COMBINED_ID)
 
 try:
-    dm = DriveManager(SERVICE_ACCOUNT)
+    dm = DriveManager(SECRET_ACC)
     st.success("DriveManager init OK")
     try:
-        df_test = dm.read_csv_file(FILE_ID)
+        df_test = dm.read_csv_file(COMBINED_ID)
         st.success(f"DriveManager read_csv_file OK (shape: {df_test.shape})")
     except Exception as e:
         st.error(f"DriveManager read_csv_file failed: {e}")
@@ -154,7 +154,6 @@ if page == "Overview":
         help="This clears all cached data, ensuring the app fetches the latest available information.",
         on_click=st.cache_data.clear
     )
-
 else:
     st.title("About")
     st.markdown("""
