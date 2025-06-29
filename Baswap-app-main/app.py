@@ -30,28 +30,45 @@ st.write("COMBINED_ID:", COMBINED_ID)
 
 dm = DriveManager(SECRET_ACC)
 
-# Drive File Listing Debug
-st.markdown("### 📄 Drive File Listing Debug")
+# Shared Drives Debug
+st.markdown("### 🗂️ Shared Drives Debug")
+try:
+    drives = dm.drive_service.drives().list().execute().get("drives", [])
+    if not drives:
+        st.warning("No Shared Drives visible to the service account.")
+    else:
+        st.write("Shared Drives visible:")
+        for d in drives:
+            st.write(f"- {d['name']} (ID: {d['id']})")
+except Exception as e:
+    st.error(f"Failed to list Shared Drives: {e}")
+
+# File Listing Across All Drives Debug
+st.markdown("### 📄 File Listing (All Drives) Debug")
 try:
     results = dm.drive_service.files().list(
         pageSize=20,
-        fields="files(id, name)"
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        fields="files(id, name, driveId)"
     ).execute()
     files = results.get("files", [])
     if not files:
-        st.warning("No files visible to this service account.")
+        st.warning("No files visible (in My Drive or Shared Drives).")
     else:
-        st.write("Files visible to the service account:")
+        st.write("Files visible across all Drives:")
         for f in files:
-            st.write(f"- {f['name']}  (ID: {f['id']})")
+            drv = f.get("driveId") or "MyDrive"
+            st.write(f"- {f['name']}  (ID: {f['id']}, Drive: {drv})")
 except Exception as e:
-    st.error(f"Failed to list files: {e}")
+    st.error(f"Failed to list files across all Drives: {e}")
 
-# Drive Metadata Check
+# Drive File Metadata Check
 st.markdown("### 🔍 Drive File Metadata Check")
 try:
     meta = dm.drive_service.files().get(
         fileId=COMBINED_ID,
+        supportsAllDrives=True,
         fields="id,name,owners,permissions"
     ).execute()
     st.success(f"✅ Metadata fetched! File name is “{meta['name']}” (ID: {meta['id']})")
@@ -108,7 +125,7 @@ st.markdown(f"""
   <div class="logo">BASWAP</div>
   <div class="nav">
     <a href="?page=Overview&lang={lang}" class="{'active' if page=='Overview' else ''}" target="_self">Overview</a>
-    <a href="?page=About&lang={lang}" class="{'active' if page=='About' else ''}" target="_self">About</a>
+    <a href="?page=About&lang={lang}" class="{'active' if page=='About'    else ''}" target="_self">About</a>
   </div>
   <div class="nav" style="margin-left:auto;">
     <a href="?page={page}&lang={toggle_lang}" target="_self">{toggle_label}</a>
@@ -130,7 +147,9 @@ if page == "Overview":
     first_date = datetime(2025, 1, 17).date()
     last_date  = df["Timestamp (GMT+7)"].max().date()
 
-    date_from, date_to, target_col, agg_functions = sidebar_inputs(df, lang, first_date, last_date)
+    date_from, date_to, target_col, agg_functions = sidebar_inputs(
+        df, lang, first_date, last_date
+    )
     filtered_df = filter_data(df, date_from, date_to)
     display_statistics(filtered_df, target_col)
 
