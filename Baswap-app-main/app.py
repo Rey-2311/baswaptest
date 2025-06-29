@@ -1,12 +1,13 @@
 import streamlit as st
 import base64
 import binascii
-
-from config import SECRET_ACC, COMBINED_ID, APP_TEXTS, COL_NAMES
-from utils.drive_handler import DriveManager
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime
+from googleapiclient.errors import HttpError
+
+from config import SECRET_ACC, COMBINED_ID, APP_TEXTS, COL_NAMES
+from utils.drive_handler import DriveManager
 from data import combined_data_retrieve, thingspeak_retrieve
 from sidebar import sidebar_inputs
 from aggregation import filter_data, apply_aggregation
@@ -14,7 +15,8 @@ from plotting import plot_line_chart, display_statistics
 
 st.set_page_config(page_title="BASWAP", page_icon="💧", layout="wide")
 
-st.markdown("## 🔧 Secret Format Check")
+# ── Secret & File ID Debug ────────────────────────────────────────────────────
+st.markdown("## 🔧 Secret & File ID Debug")
 raw = SECRET_ACC.strip()
 st.write("First 100 chars of SECRET_ACC:", raw[:100])
 if raw.startswith("{") and raw.endswith("}"):
@@ -26,67 +28,62 @@ except binascii.Error:
     st.error("SECRET_ACC is NOT valid Base64")
 st.write("COMBINED_ID:", COMBINED_ID)
 
+# ── Drive Metadata Check ─────────────────────────────────────────────────────
+st.markdown("### 🔍 Drive File Metadata Check")
+dm = DriveManager(SECRET_ACC)
 try:
-    dm = DriveManager(SECRET_ACC)
-    st.success("DriveManager init OK")
-    try:
-        df_test = dm.read_csv_file(COMBINED_ID)
-        st.success(f"DriveManager read_csv_file OK (shape: {df_test.shape})")
-    except Exception as e:
-        st.error(f"DriveManager read_csv_file failed: {e}")
-except Exception as e:
-    st.error(f"DriveManager init failed: {e}")
+    meta = dm.drive_service.files().get(
+        fileId=COMBINED_ID,
+        fields="id,name,owners,permissions"
+    ).execute()
+    st.success(f"✅ Metadata fetched! File name is “{meta['name']}” (ID: {meta['id']})")
+    st.write("Owners:", [o.get("emailAddress") for o in meta.get("owners", [])])
+    st.write("Permissions:", meta.get("permissions", []))
+except HttpError as e:
+    st.error(f"❌ Metadata lookup failed: {e}")
 
+# ── CSV Read Debug ────────────────────────────────────────────────────────────
+st.markdown("### 📥 CSV Read Debug")
+try:
+    df_test = dm.read_csv_file(COMBINED_ID)
+    st.success(f"DriveManager read_csv_file OK (shape: {df_test.shape})")
+except Exception as e:
+    st.error(f"DriveManager read_csv_file failed: {e}")
+
+# ── UI Header & Navigation ────────────────────────────────────────────────────
 st.markdown("""
 <style>
 header { visibility: hidden; }
 .custom-header {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    height: 4.5rem;
-    display: flex;
-    align-items: center;
-    padding: 0 1rem;
-    background: #fff;
+    position: fixed; top: 0; left: 0; right: 0;
+    height: 4.5rem; display: flex; align-items: center;
+    padding: 0 1rem; background: #fff;
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    z-index: 1000;
-    gap: 2rem;
+    z-index: 1000; gap: 2rem;
 }
 .custom-header .logo {
-    font-size: 1.65rem;
-    font-weight: 600;
-    color: #000;
+    font-size: 1.65rem; font-weight: 600; color: #000;
 }
-.custom-header .nav {
-    display: flex;
-    gap: 1rem;
-}
+.custom-header .nav { display: flex; gap: 1rem; }
 .custom-header .nav a {
-    text-decoration: none;
-    color: #262730;
-    font-size: 0.9rem;
-    padding-bottom: 0.25rem;
+    text-decoration: none; color: #262730;
+    font-size: 0.9rem; padding-bottom: 0.25rem;
     border-bottom: 2px solid transparent;
 }
 .custom-header .nav a.active {
-    color: #09c;
-    border-bottom-color: #09c;
+    color: #09c; border-bottom-color: #09c;
 }
-.custom-header .nav a:hover {
-    border-bottom-color: #262730;
-}
-body > .main {
-    margin-top: 4.5rem;
-}
+body > .main { margin-top: 4.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
-qs   = st.query_params
+qs = st.query_params
 page = qs.get("page", "Overview")
 lang = qs.get("lang", "vi")
-if page not in ("Overview", "About"): page = "Overview"
-if lang not in ("en", "vi"):       lang = "vi"
-
+if page not in ("Overview", "About"):
+    page = "Overview"
+if lang not in ("en", "vi"):
+    lang = "vi"
 toggle_lang  = "en" if lang == "vi" else "vi"
 toggle_label = APP_TEXTS[lang]["toggle_button"]
 
@@ -105,6 +102,7 @@ st.markdown(f"""
 
 texts = APP_TEXTS[lang]
 
+# ── Main Pages ────────────────────────────────────────────────────────────────
 if page == "Overview":
     m = folium.Map(location=[10.231140, 105.980999], zoom_start=8)
     st_folium(m, width="100%", height=400)
@@ -121,7 +119,6 @@ if page == "Overview":
         df, lang, first_date, last_date
     )
     filtered_df = filter_data(df, date_from, date_to)
-
     display_statistics(filtered_df, target_col)
 
     def display_view(df, target_col, view_title, resample_freq, selected_cols, agg_functions):
@@ -151,7 +148,7 @@ if page == "Overview":
 
     st.button(
         texts["clear_cache"],
-        help="This clears all cached data, ensuring the app fetches the latest available information.",
+        help="Clears cached data for fresh fetch.",
         on_click=st.cache_data.clear
     )
 else:
