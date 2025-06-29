@@ -15,35 +15,27 @@ from plotting import plot_line_chart, display_statistics
 
 st.set_page_config(page_title="BASWAP", page_icon="💧", layout="wide")
 
-# Secret & File ID Debug
+# ── Secret & File ID Debug ────────────────────────────────────────────────────
 st.markdown("## 🔧 Secret & File ID Debug")
 raw = SECRET_ACC.strip()
 st.write("First 100 chars of SECRET_ACC:", raw[:100])
-if raw.startswith("{") and raw.endswith("}"):
-    st.warning("SECRET_ACC looks like raw JSON, not Base64!")
 try:
     decoded = base64.b64decode(raw, validate=True)
+    info = decoded.decode("utf-8")
     st.success(f"SECRET_ACC is valid Base64 (decoded length: {len(decoded)} bytes)")
-except binascii.Error:
-    st.error("SECRET_ACC is NOT valid Base64")
+    # extract client_email from the JSON
+    import json
+    svc_info = json.loads(info)
+    st.write("Service account email in key:", svc_info.get("client_email"))
+except Exception as e:
+    st.error(f"SECRET_ACC decode or JSON parse failed: {e}")
+
 st.write("COMBINED_ID:", COMBINED_ID)
 
+# ── Initialize DriveManager ───────────────────────────────────────────────────
 dm = DriveManager(SECRET_ACC)
 
-# Shared Drives Debug
-st.markdown("### 🗂️ Shared Drives Debug")
-try:
-    drives = dm.drive_service.drives().list().execute().get("drives", [])
-    if not drives:
-        st.warning("No Shared Drives visible to the service account.")
-    else:
-        st.write("Shared Drives visible:")
-        for d in drives:
-            st.write(f"- {d['name']} (ID: {d['id']})")
-except Exception as e:
-    st.error(f"Failed to list Shared Drives: {e}")
-
-# File Listing Across All Drives Debug
+# ── File Listing Across All Drives Debug ───────────────────────────────────────
 st.markdown("### 📄 File Listing (All Drives) Debug")
 try:
     results = dm.drive_service.files().list(
@@ -63,21 +55,37 @@ try:
 except Exception as e:
     st.error(f"Failed to list files across all Drives: {e}")
 
-# Drive File Metadata Check
+# ── Permissions Check on the Specific File ────────────────────────────────────
+st.markdown("### 🔐 File Permissions Debug")
+try:
+    perms = dm.drive_service.permissions().list(
+        fileId=COMBINED_ID,
+        supportsAllDrives=True,
+        fields="permissions(id, type, role, emailAddress)"
+    ).execute().get("permissions", [])
+    if not perms:
+        st.warning("No permissions entries found for this file.")
+    else:
+        st.write("Permissions on the file:")
+        for p in perms:
+            st.write(f"- {p.get('type')} {p.get('role')} {p.get('emailAddress')}")
+except HttpError as e:
+    st.error(f"Permissions lookup failed: {e}")
+
+# ── Drive File Metadata Check ─────────────────────────────────────────────────
 st.markdown("### 🔍 Drive File Metadata Check")
 try:
     meta = dm.drive_service.files().get(
         fileId=COMBINED_ID,
         supportsAllDrives=True,
-        fields="id,name,owners,permissions"
+        fields="id,name,owners"
     ).execute()
-    st.success(f"✅ Metadata fetched! File name is “{meta['name']}” (ID: {meta['id']})")
+    st.success(f"✅ Metadata fetched! File name: {meta['name']} (ID: {meta['id']})")
     st.write("Owners:", [o.get("emailAddress") for o in meta.get("owners", [])])
-    st.write("Permissions:", meta.get("permissions", []))
 except HttpError as e:
-    st.error(f"❌ Metadata lookup failed: {e}")
+    st.error(f"Metadata lookup failed: {e}")
 
-# CSV Read Debug
+# ── CSV Read Debug ─────────────────────────────────────────────────────────────
 st.markdown("### 📥 CSV Read Debug")
 try:
     df_test = dm.read_csv_file(COMBINED_ID)
@@ -85,7 +93,7 @@ try:
 except Exception as e:
     st.error(f"DriveManager read_csv_file failed: {e}")
 
-# UI Header & Navigation
+# ── UI Header & Navigation ────────────────────────────────────────────────────
 st.markdown("""
 <style>
 header { visibility: hidden; }
@@ -105,14 +113,12 @@ header { visibility: hidden; }
     font-size: 0.9rem; padding-bottom: 0.25rem;
     border-bottom: 2px solid transparent;
 }
-.custom-header .nav a.active {
-    color: #09c; border-bottom-color: #09c;
-}
+.custom-header .nav a.active { color: #09c; border-bottom-color: #09c; }
 body > .main { margin-top: 4.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
-qs = st.query_params
+qs   = st.query_params
 page = qs.get("page", "Overview")
 lang = qs.get("lang", "vi")
 if page not in ("Overview", "About"): page = "Overview"
@@ -125,7 +131,7 @@ st.markdown(f"""
   <div class="logo">BASWAP</div>
   <div class="nav">
     <a href="?page=Overview&lang={lang}" class="{'active' if page=='Overview' else ''}" target="_self">Overview</a>
-    <a href="?page=About&lang={lang}" class="{'active' if page=='About'    else ''}" target="_self">About</a>
+    <a href="?page=About&lang={lang}"    class="{'active' if page=='About'    else ''}" target="_self">About</a>
   </div>
   <div class="nav" style="margin-left:auto;">
     <a href="?page={page}&lang={toggle_lang}" target="_self">{toggle_label}</a>
