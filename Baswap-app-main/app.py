@@ -1,45 +1,41 @@
 import streamlit as st
-import os, sys, json, base64
-from datetime import datetime
+import base64
+import binascii
+
+from config import SERVICE_ACCOUNT, FILE_ID, APP_TEXTS, COL_NAMES
+from utils.drive_handler import DriveManager
 import folium
 from streamlit_folium import st_folium
-
-# allow importing DriveManager from the utils folder
-sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
-from drive_handler import DriveManager
-
+from datetime import datetime
 from data import combined_data_retrieve, thingspeak_retrieve
 from sidebar import sidebar_inputs
 from aggregation import filter_data, apply_aggregation
 from plotting import plot_line_chart, display_statistics
-from config import SECRET_ACC, COMBINED_ID, APP_TEXTS, COL_NAMES
 
 st.set_page_config(page_title="BASWAP", page_icon="💧", layout="wide")
 
-st.markdown("## 🔧 Secret Flow Debug")
-st.write("SECRET_ACC type:", type(SECRET_ACC))
-st.write("SECRET_ACC length:", len(SECRET_ACC))
-st.write("SECRET_ACC repr (first 200 chars):", repr(SECRET_ACC[:200]))
+st.markdown("## 🔧 Secret Format Check")
+raw = SERVICE_ACCOUNT.strip()
+st.write("First 100 chars of SERVICE_ACCOUNT:", raw[:100])
+if raw.startswith("{") and raw.endswith("}"):
+    st.warning("SERVICE_ACCOUNT looks like raw JSON, not Base64!")
 try:
-    parsed = json.loads(SECRET_ACC)
-    st.write("JSON parse OK, keys:", list(parsed.keys()))
-except Exception as e:
-    st.write("JSON parse failed:", e)
+    decoded = base64.b64decode(raw, validate=True)
+    st.success(f"SERVICE_ACCOUNT is valid Base64 (decoded length: {len(decoded)} bytes)")
+except binascii.Error:
+    st.error("SERVICE_ACCOUNT is NOT valid Base64")
+st.write("FILE_ID:", FILE_ID)
+
 try:
-    decoded = base64.b64decode(SECRET_ACC)
-    st.write("Base64 decode OK, length:", len(decoded))
-except Exception as e:
-    st.write("Base64 decode failed:", e)
-try:
-    dm = DriveManager(SECRET_ACC)
-    st.write("DriveManager init OK")
+    dm = DriveManager(SERVICE_ACCOUNT)
+    st.success("DriveManager init OK")
     try:
-        df_test = dm.read_csv_file(COMBINED_ID)
-        st.write("DriveManager read_csv_file OK, shape:", df_test.shape)
+        df_test = dm.read_csv_file(FILE_ID)
+        st.success(f"DriveManager read_csv_file OK (shape: {df_test.shape})")
     except Exception as e:
-        st.write("DriveManager read_csv_file failed:", e)
+        st.error(f"DriveManager read_csv_file failed: {e}")
 except Exception as e:
-    st.write("DriveManager init failed:", e)
+    st.error(f"DriveManager init failed: {e}")
 
 st.markdown("""
 <style>
@@ -72,12 +68,12 @@ header { visibility: hidden; }
     padding-bottom: 0.25rem;
     border-bottom: 2px solid transparent;
 }
-.custom-header .nav a:hover {
-    border-bottom-color: #262730;
-}
 .custom-header .nav a.active {
     color: #09c;
     border-bottom-color: #09c;
+}
+.custom-header .nav a:hover {
+    border-bottom-color: #262730;
 }
 body > .main {
     margin-top: 4.5rem;
@@ -98,8 +94,8 @@ st.markdown(f"""
 <div class="custom-header">
   <div class="logo">BASWAP</div>
   <div class="nav">
-    <a href="?page=Overview&lang={lang}" class="{'active' if page=='Overview' else ''}" target="_self">Overview</a>
-    <a href="?page=About&lang={lang}"    class="{'active' if page=='About'    else ''}" target="_self">About</a>
+    <a href="?page=Overview&lang={lang}"     class="{'active' if page=='Overview' else ''}" target="_self">Overview</a>
+    <a href="?page=About&lang={lang}"        class="{'active' if page=='About'    else ''}" target="_self">About</a>
   </div>
   <div class="nav" style="margin-left:auto;">
     <a href="?page={page}&lang={toggle_lang}" target="_self">{toggle_label}</a>
@@ -121,7 +117,9 @@ if page == "Overview":
     first_date = datetime(2025, 1, 17).date()
     last_date  = df["Timestamp (GMT+7)"].max().date()
 
-    date_from, date_to, target_col, agg_functions = sidebar_inputs(df, lang, first_date, last_date)
+    date_from, date_to, target_col, agg_functions = sidebar_inputs(
+        df, lang, first_date, last_date
+    )
     filtered_df = filter_data(df, date_from, date_to)
 
     display_statistics(filtered_df, target_col)
@@ -131,20 +129,32 @@ if page == "Overview":
         if resample_freq == "None":
             view_df = df.copy()
         else:
-            view_df = apply_aggregation(df, selected_cols, target_col, resample_freq, agg_functions)
+            view_df = apply_aggregation(
+                df, selected_cols, target_col, resample_freq, agg_functions
+            )
         plot_line_chart(view_df, target_col, resample_freq)
 
-    display_view(filtered_df, target_col, f"{texts['raw_view']} {target_col}", "None", COL_NAMES, agg_functions)
-    display_view(filtered_df, target_col, f"{texts['hourly_view']} {target_col}", "Hour", COL_NAMES, agg_functions)
-    display_view(filtered_df, target_col, f"{texts['daily_view']} {target_col}", "Day", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col,
+                 f"{texts['raw_view']} {target_col}", "None", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col,
+                 f"{texts['hourly_view']} {target_col}", "Hour", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col,
+                 f"{texts['daily_view']} {target_col}", "Day", COL_NAMES, agg_functions)
 
     st.subheader(texts["data_table"])
-    selected_table_cols = st.multiselect(texts["columns_select"], options=COL_NAMES, default=COL_NAMES)
+    selected_table_cols = st.multiselect(
+        texts["columns_select"], options=COL_NAMES, default=COL_NAMES
+    )
     selected_table_cols.insert(0, "Timestamp (GMT+7)")
     st.write(f"{texts['data_dimensions']} ({filtered_df.shape[0]}, {len(selected_table_cols)}).")
     st.dataframe(filtered_df[selected_table_cols], use_container_width=True)
 
-    st.button(texts["clear_cache"], help="This clears all cached data, ensuring the app fetches the latest available information.", on_click=st.cache_data.clear)
+    st.button(
+        texts["clear_cache"],
+        help="This clears all cached data, ensuring the app fetches the latest available information.",
+        on_click=st.cache_data.clear
+    )
+
 else:
     st.title("About")
     st.markdown("""
