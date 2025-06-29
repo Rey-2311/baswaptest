@@ -131,4 +131,4 @@ class DriveManager:
             return df
         except Exception as e:
             print(f"[ERROR] Failed to read CSV file with ID: {file_id}. Error: {str(e)}")
-            return None
+            raise
