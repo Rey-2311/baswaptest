@@ -15,7 +15,7 @@ from plotting import plot_line_chart, display_statistics
 
 st.set_page_config(page_title="BASWAP", page_icon="💧", layout="wide")
 
-# ── Secret & File ID Debug ────────────────────────────────────────────────────
+# Secret & File ID Debug
 st.markdown("## 🔧 Secret & File ID Debug")
 raw = SECRET_ACC.strip()
 st.write("First 100 chars of SECRET_ACC:", raw[:100])
@@ -28,9 +28,27 @@ except binascii.Error:
     st.error("SECRET_ACC is NOT valid Base64")
 st.write("COMBINED_ID:", COMBINED_ID)
 
-# ── Drive Metadata Check ─────────────────────────────────────────────────────
-st.markdown("### 🔍 Drive File Metadata Check")
 dm = DriveManager(SECRET_ACC)
+
+# Drive File Listing Debug
+st.markdown("### 📄 Drive File Listing Debug")
+try:
+    results = dm.drive_service.files().list(
+        pageSize=20,
+        fields="files(id, name)"
+    ).execute()
+    files = results.get("files", [])
+    if not files:
+        st.warning("No files visible to this service account.")
+    else:
+        st.write("Files visible to the service account:")
+        for f in files:
+            st.write(f"- {f['name']}  (ID: {f['id']})")
+except Exception as e:
+    st.error(f"Failed to list files: {e}")
+
+# Drive Metadata Check
+st.markdown("### 🔍 Drive File Metadata Check")
 try:
     meta = dm.drive_service.files().get(
         fileId=COMBINED_ID,
@@ -42,7 +60,7 @@ try:
 except HttpError as e:
     st.error(f"❌ Metadata lookup failed: {e}")
 
-# ── CSV Read Debug ────────────────────────────────────────────────────────────
+# CSV Read Debug
 st.markdown("### 📥 CSV Read Debug")
 try:
     df_test = dm.read_csv_file(COMBINED_ID)
@@ -50,7 +68,7 @@ try:
 except Exception as e:
     st.error(f"DriveManager read_csv_file failed: {e}")
 
-# ── UI Header & Navigation ────────────────────────────────────────────────────
+# UI Header & Navigation
 st.markdown("""
 <style>
 header { visibility: hidden; }
@@ -80,10 +98,8 @@ body > .main { margin-top: 4.5rem; }
 qs = st.query_params
 page = qs.get("page", "Overview")
 lang = qs.get("lang", "vi")
-if page not in ("Overview", "About"):
-    page = "Overview"
-if lang not in ("en", "vi"):
-    lang = "vi"
+if page not in ("Overview", "About"): page = "Overview"
+if lang not in ("en", "vi"): lang = "vi"
 toggle_lang  = "en" if lang == "vi" else "vi"
 toggle_label = APP_TEXTS[lang]["toggle_button"]
 
@@ -91,8 +107,8 @@ st.markdown(f"""
 <div class="custom-header">
   <div class="logo">BASWAP</div>
   <div class="nav">
-    <a href="?page=Overview&lang={lang}"     class="{'active' if page=='Overview' else ''}" target="_self">Overview</a>
-    <a href="?page=About&lang={lang}"        class="{'active' if page=='About'    else ''}" target="_self">About</a>
+    <a href="?page=Overview&lang={lang}" class="{'active' if page=='Overview' else ''}" target="_self">Overview</a>
+    <a href="?page=About&lang={lang}" class="{'active' if page=='About' else ''}" target="_self">About</a>
   </div>
   <div class="nav" style="margin-left:auto;">
     <a href="?page={page}&lang={toggle_lang}" target="_self">{toggle_label}</a>
@@ -102,7 +118,6 @@ st.markdown(f"""
 
 texts = APP_TEXTS[lang]
 
-# ── Main Pages ────────────────────────────────────────────────────────────────
 if page == "Overview":
     m = folium.Map(location=[10.231140, 105.980999], zoom_start=8)
     st_folium(m, width="100%", height=400)
@@ -115,9 +130,7 @@ if page == "Overview":
     first_date = datetime(2025, 1, 17).date()
     last_date  = df["Timestamp (GMT+7)"].max().date()
 
-    date_from, date_to, target_col, agg_functions = sidebar_inputs(
-        df, lang, first_date, last_date
-    )
+    date_from, date_to, target_col, agg_functions = sidebar_inputs(df, lang, first_date, last_date)
     filtered_df = filter_data(df, date_from, date_to)
     display_statistics(filtered_df, target_col)
 
@@ -126,31 +139,20 @@ if page == "Overview":
         if resample_freq == "None":
             view_df = df.copy()
         else:
-            view_df = apply_aggregation(
-                df, selected_cols, target_col, resample_freq, agg_functions
-            )
+            view_df = apply_aggregation(df, selected_cols, target_col, resample_freq, agg_functions)
         plot_line_chart(view_df, target_col, resample_freq)
 
-    display_view(filtered_df, target_col,
-                 f"{texts['raw_view']} {target_col}", "None", COL_NAMES, agg_functions)
-    display_view(filtered_df, target_col,
-                 f"{texts['hourly_view']} {target_col}", "Hour", COL_NAMES, agg_functions)
-    display_view(filtered_df, target_col,
-                 f"{texts['daily_view']} {target_col}", "Day", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col, f"{texts['raw_view']} {target_col}", "None", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col, f"{texts['hourly_view']} {target_col}", "Hour", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col, f"{texts['daily_view']} {target_col}", "Day", COL_NAMES, agg_functions)
 
     st.subheader(texts["data_table"])
-    selected_table_cols = st.multiselect(
-        texts["columns_select"], options=COL_NAMES, default=COL_NAMES
-    )
+    selected_table_cols = st.multiselect(texts["columns_select"], options=COL_NAMES, default=COL_NAMES)
     selected_table_cols.insert(0, "Timestamp (GMT+7)")
     st.write(f"{texts['data_dimensions']} ({filtered_df.shape[0]}, {len(selected_table_cols)}).")
     st.dataframe(filtered_df[selected_table_cols], use_container_width=True)
 
-    st.button(
-        texts["clear_cache"],
-        help="Clears cached data for fresh fetch.",
-        on_click=st.cache_data.clear
-    )
+    st.button(texts["clear_cache"], help="Clears cached data for fresh fetch.", on_click=st.cache_data.clear)
 else:
     st.title("About")
     st.markdown("""
