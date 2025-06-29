@@ -1,37 +1,4 @@
-import json
 import streamlit as st
-from config import SECRET_ACC, COMBINED_ID
-from utils import DriveManager
-
-st.header("🔍 Debugging Secrets & Drive Access")
-
-st.write("SERVICE_ACCOUNT repr:", repr(SECRET_ACC))
-st.write("SERVICE_ACCOUNT length:", len(SECRET_ACC))
-st.text("SERVICE_ACCOUNT preview:")
-st.text(SECRET_ACC[:300])
-
-st.write("COMBINED_ID repr:", repr(COMBINED_ID))
-st.write("COMBINED_ID length:", len(COMBINED_ID))
-
-# 1) JSON parse test
-try:
-    info = json.loads(SECRET_ACC)
-    st.success(f"Parsed SERVICE_ACCOUNT JSON: client_email={info.get('client_email')}")
-except Exception as e:
-    st.error("SERVICE_ACCOUNT JSON parse error: " + str(e))
-
-# 2) Drive access test
-try:
-    drive = DriveManager(SECRET_ACC)
-    df_test = drive.read_csv_file(COMBINED_ID)
-    if df_test is None:
-        st.error("drive.read_csv_file returned None")
-    else:
-        st.success(f"Drive read_csv_file succeeded: {df_test.shape}")
-        st.write(df_test.head())
-except Exception as e:
-    st.error("Failed to load CSV from Drive: " + str(e))
-
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime
@@ -42,6 +9,13 @@ from plotting import plot_line_chart, display_statistics
 from config import COL_NAMES, APP_TEXTS
 
 st.set_page_config(page_title="BASWAP", page_icon="💧", layout="wide")
+
+st.markdown("## 🔧 Secret Account Debug")
+try:
+    df_debug = combined_data_retrieve()
+    st.success(f"Data retrieval OK – DataFrame shape {df_debug.shape}")
+except Exception as e:
+    st.error(f"Data retrieval failed – {e}")
 
 st.markdown("""
 <style>
@@ -90,10 +64,8 @@ body > .main {
 qs = st.query_params
 page = qs.get("page", "Overview")
 lang = qs.get("lang", "vi")
-if page not in ("Overview", "About"):
-    page = "Overview"
-if lang not in ("en", "vi"):
-    lang = "vi"
+if page not in ("Overview", "About"): page = "Overview"
+if lang not in ("en", "vi"):       lang = "vi"
 
 toggle_lang = "en" if lang == "vi" else "vi"
 toggle_label = APP_TEXTS[lang]["toggle_button"]
@@ -102,8 +74,8 @@ st.markdown(f"""
 <div class="custom-header">
   <div class="logo">BASWAP</div>
   <div class="nav">
-    <a href="?page=Overview&lang={lang}" target="_self" class="{'active' if page=='Overview' else ''}">Overview</a>
-    <a href="?page=About&lang={lang}"    target="_self" class="{'active' if page=='About'    else ''}">About</a>
+    <a href="?page=Overview&lang={lang}"     class="{'active' if page=='Overview' else ''}" target="_self">Overview</a>
+    <a href="?page=About&lang={lang}"        class="{'active' if page=='About'    else ''}" target="_self">About</a>
   </div>
   <div class="nav" style="margin-left:auto;">
     <a href="?page={page}&lang={toggle_lang}" target="_self">{toggle_label}</a>
@@ -123,9 +95,11 @@ if page == "Overview":
     df = combined_data_retrieve()
     df = thingspeak_retrieve(df)
     first_date = datetime(2025, 1, 17).date()
-    last_date = df["Timestamp (GMT+7)"].max().date()
+    last_date  = df["Timestamp (GMT+7)"].max().date()
 
-    date_from, date_to, target_col, agg_functions = sidebar_inputs(df, lang, first_date, last_date)
+    date_from, date_to, target_col, agg_functions = sidebar_inputs(
+        df, lang, first_date, last_date
+    )
     filtered_df = filter_data(df, date_from, date_to)
 
     display_statistics(filtered_df, target_col)
@@ -135,20 +109,31 @@ if page == "Overview":
         if resample_freq == "None":
             view_df = df.copy()
         else:
-            view_df = apply_aggregation(df, selected_cols, target_col, resample_freq, agg_functions)
+            view_df = apply_aggregation(
+                df, selected_cols, target_col, resample_freq, agg_functions
+            )
         plot_line_chart(view_df, target_col, resample_freq)
 
-    display_view(filtered_df, target_col, f"{texts['raw_view']} {target_col}", "None", COL_NAMES, agg_functions)
-    display_view(filtered_df, target_col, f"{texts['hourly_view']} {target_col}", "Hour", COL_NAMES, agg_functions)
-    display_view(filtered_df, target_col, f"{texts['daily_view']} {target_col}", "Day", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col,
+                 f"{texts['raw_view']} {target_col}", "None", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col,
+                 f"{texts['hourly_view']} {target_col}", "Hour", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col,
+                 f"{texts['daily_view']} {target_col}", "Day", COL_NAMES, agg_functions)
 
     st.subheader(texts["data_table"])
-    selected_table_cols = st.multiselect(texts["columns_select"], options=COL_NAMES, default=COL_NAMES)
+    selected_table_cols = st.multiselect(
+        texts["columns_select"], options=COL_NAMES, default=COL_NAMES
+    )
     selected_table_cols.insert(0, "Timestamp (GMT+7)")
     st.write(f"{texts['data_dimensions']} ({filtered_df.shape[0]}, {len(selected_table_cols)}).")
     st.dataframe(filtered_df[selected_table_cols], use_container_width=True)
 
-    st.button(texts["clear_cache"], help="This clears all cached data.", on_click=st.cache_data.clear)
+    st.button(
+        texts["clear_cache"],
+        help="This clears all cached data, ensuring the app fetches the latest available information.",
+        on_click=st.cache_data.clear
+    )
 else:
     st.title("About")
     st.markdown("""
