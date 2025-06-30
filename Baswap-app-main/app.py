@@ -22,40 +22,58 @@ st.write("First 100 chars of SECRET_ACC:", raw[:100])
 try:
     decoded = base64.b64decode(raw, validate=True)
     info = decoded.decode("utf-8")
+    svc_info = __import__("json").loads(info)
     st.success(f"SECRET_ACC is valid Base64 (decoded length: {len(decoded)} bytes)")
-    # extract client_email from the JSON
-    import json
-    svc_info = json.loads(info)
     st.write("Service account email in key:", svc_info.get("client_email"))
 except Exception as e:
-    st.error(f"SECRET_ACC decode or JSON parse failed: {e}")
+    st.error(f"SECRET_ACC decode/parse failed: {e}")
 
 st.write("COMBINED_ID:", COMBINED_ID)
 
 # ── Initialize DriveManager ───────────────────────────────────────────────────
 dm = DriveManager(SECRET_ACC)
 
+# ── File Listing (My Drive + SharedWithMe) Debug ──────────────────────────────
+st.markdown("### 🔄 File Listing (sharedWithMe) Debug")
+try:
+    swm_results = dm.drive_service.files().list(
+        q="sharedWithMe",
+        pageSize=20,
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        fields="files(id, name)"
+    ).execute()
+    swm_files = swm_results.get("files", [])
+    if not swm_files:
+        st.warning("No files sharedWithMe visible.")
+    else:
+        st.write("Files shared with this account:")
+        for f in swm_files:
+            st.write(f"- {f['name']} (ID: {f['id']})")
+except Exception as e:
+    st.error(f"sharedWithMe listing failed: {e}")
+
 # ── File Listing Across All Drives Debug ───────────────────────────────────────
 st.markdown("### 📄 File Listing (All Drives) Debug")
 try:
-    results = dm.drive_service.files().list(
+    all_results = dm.drive_service.files().list(
         pageSize=20,
         includeItemsFromAllDrives=True,
         supportsAllDrives=True,
         fields="files(id, name, driveId)"
     ).execute()
-    files = results.get("files", [])
-    if not files:
+    all_files = all_results.get("files", [])
+    if not all_files:
         st.warning("No files visible (in My Drive or Shared Drives).")
     else:
-        st.write("Files visible across all Drives:")
-        for f in files:
+        st.write("Files visible across all drives:")
+        for f in all_files:
             drv = f.get("driveId") or "MyDrive"
             st.write(f"- {f['name']}  (ID: {f['id']}, Drive: {drv})")
 except Exception as e:
-    st.error(f"Failed to list files across all Drives: {e}")
+    st.error(f"All-drives listing failed: {e}")
 
-# ── Permissions Check on the Specific File ────────────────────────────────────
+# ── File Permissions Debug ─────────────────────────────────────────────────────
 st.markdown("### 🔐 File Permissions Debug")
 try:
     perms = dm.drive_service.permissions().list(
@@ -118,7 +136,7 @@ body > .main { margin-top: 4.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
-qs   = st.query_params
+qs = st.query_params
 page = qs.get("page", "Overview")
 lang = qs.get("lang", "vi")
 if page not in ("Overview", "About"): page = "Overview"
@@ -131,7 +149,7 @@ st.markdown(f"""
   <div class="logo">BASWAP</div>
   <div class="nav">
     <a href="?page=Overview&lang={lang}" class="{'active' if page=='Overview' else ''}" target="_self">Overview</a>
-    <a href="?page=About&lang={lang}"    class="{'active' if page=='About'    else ''}" target="_self">About</a>
+    <a href="?page=About&lang={lang}" class="{'active' if page=='About'    else ''}" target="_self">About</a>
   </div>
   <div class="nav" style="margin-left:auto;">
     <a href="?page={page}&lang={toggle_lang}" target="_self">{toggle_label}</a>
