@@ -1,10 +1,7 @@
 import streamlit as st
-import base64
-import binascii
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime
-from googleapiclient.errors import HttpError
 
 from config import SECRET_ACC, COMBINED_ID, APP_TEXTS, COL_NAMES
 from utils.drive_handler import DriveManager
@@ -15,101 +12,8 @@ from plotting import plot_line_chart, display_statistics
 
 st.set_page_config(page_title="BASWAP", page_icon="💧", layout="wide")
 
-# ── Secret & File ID Debug ────────────────────────────────────────────────────
-st.markdown("## 🔧 Secret & File ID Debug")
-raw = SECRET_ACC.strip()
-st.write("First 100 chars of SECRET_ACC:", raw[:100])
-try:
-    decoded = base64.b64decode(raw, validate=True)
-    info = decoded.decode("utf-8")
-    svc_info = __import__("json").loads(info)
-    st.success(f"SECRET_ACC is valid Base64 (decoded length: {len(decoded)} bytes)")
-    st.write("Service account email in key:", svc_info.get("client_email"))
-except Exception as e:
-    st.error(f"SECRET_ACC decode/parse failed: {e}")
-
-st.write("COMBINED_ID:", COMBINED_ID)
-
 # ── Initialize DriveManager ───────────────────────────────────────────────────
 dm = DriveManager(SECRET_ACC)
-
-# ── File Listing (My Drive + SharedWithMe) Debug ──────────────────────────────
-st.markdown("### 🔄 File Listing (sharedWithMe) Debug")
-try:
-    swm_results = dm.drive_service.files().list(
-        q="sharedWithMe",
-        pageSize=20,
-        includeItemsFromAllDrives=True,
-        supportsAllDrives=True,
-        fields="files(id, name)"
-    ).execute()
-    swm_files = swm_results.get("files", [])
-    if not swm_files:
-        st.warning("No files sharedWithMe visible.")
-    else:
-        st.write("Files shared with this account:")
-        for f in swm_files:
-            st.write(f"- {f['name']} (ID: {f['id']})")
-except Exception as e:
-    st.error(f"sharedWithMe listing failed: {e}")
-
-# ── File Listing Across All Drives Debug ───────────────────────────────────────
-st.markdown("### 📄 File Listing (All Drives) Debug")
-try:
-    all_results = dm.drive_service.files().list(
-        pageSize=20,
-        includeItemsFromAllDrives=True,
-        supportsAllDrives=True,
-        fields="files(id, name, driveId)"
-    ).execute()
-    all_files = all_results.get("files", [])
-    if not all_files:
-        st.warning("No files visible (in My Drive or Shared Drives).")
-    else:
-        st.write("Files visible across all drives:")
-        for f in all_files:
-            drv = f.get("driveId") or "MyDrive"
-            st.write(f"- {f['name']}  (ID: {f['id']}, Drive: {drv})")
-except Exception as e:
-    st.error(f"All-drives listing failed: {e}")
-
-# ── File Permissions Debug ─────────────────────────────────────────────────────
-st.markdown("### 🔐 File Permissions Debug")
-try:
-    perms = dm.drive_service.permissions().list(
-        fileId=COMBINED_ID,
-        supportsAllDrives=True,
-        fields="permissions(id, type, role, emailAddress)"
-    ).execute().get("permissions", [])
-    if not perms:
-        st.warning("No permissions entries found for this file.")
-    else:
-        st.write("Permissions on the file:")
-        for p in perms:
-            st.write(f"- {p.get('type')} {p.get('role')} {p.get('emailAddress')}")
-except HttpError as e:
-    st.error(f"Permissions lookup failed: {e}")
-
-# ── Drive File Metadata Check ─────────────────────────────────────────────────
-st.markdown("### 🔍 Drive File Metadata Check")
-try:
-    meta = dm.drive_service.files().get(
-        fileId=COMBINED_ID,
-        supportsAllDrives=True,
-        fields="id,name,owners"
-    ).execute()
-    st.success(f"✅ Metadata fetched! File name: {meta['name']} (ID: {meta['id']})")
-    st.write("Owners:", [o.get("emailAddress") for o in meta.get("owners", [])])
-except HttpError as e:
-    st.error(f"Metadata lookup failed: {e}")
-
-# ── CSV Read Debug ─────────────────────────────────────────────────────────────
-st.markdown("### 📥 CSV Read Debug")
-try:
-    df_test = dm.read_csv_file(COMBINED_ID)
-    st.success(f"DriveManager read_csv_file OK (shape: {df_test.shape})")
-except Exception as e:
-    st.error(f"DriveManager read_csv_file failed: {e}")
 
 # ── UI Header & Navigation ────────────────────────────────────────────────────
 st.markdown("""
