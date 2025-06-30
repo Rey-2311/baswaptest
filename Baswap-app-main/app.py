@@ -1,9 +1,10 @@
 import streamlit as st
-import base64, json
-from googleapiclient.errors import HttpError
+import base64
+import binascii
 import folium
 from streamlit_folium import st_folium
 from datetime import datetime
+from googleapiclient.errors import HttpError
 
 from config import SECRET_ACC, COMBINED_ID, APP_TEXTS, COL_NAMES
 from utils.drive_handler import DriveManager
@@ -14,53 +15,133 @@ from plotting import plot_line_chart, display_statistics
 
 st.set_page_config(page_title="BASWAP", page_icon="💧", layout="wide")
 
-# ── Minimal Authentication Debug ──────────────────────────────────────────────
-st.markdown("## 🔧 Authentication Debug")
+# ── Secret & File ID Debug ────────────────────────────────────────────────────
+st.markdown("## 🔧 Secret & File ID Debug")
+raw = SECRET_ACC.strip()
+st.write("First 100 chars of SECRET_ACC:", raw[:100])
 try:
-    svc_info = json.loads(base64.b64decode(SECRET_ACC).decode("utf-8"))
-    st.write("✔️ Parsed key for:", svc_info.get("client_email"))
+    decoded = base64.b64decode(raw, validate=True)
+    info = decoded.decode("utf-8")
+    svc_info = __import__("json").loads(info)
+    st.success(f"SECRET_ACC is valid Base64 (decoded length: {len(decoded)} bytes)")
+    st.write("Service account email in key:", svc_info.get("client_email"))
 except Exception as e:
-    st.error("❌ SERVICE_ACCOUNT invalid or not Base64-encoded")
-    st.stop()
+    st.error(f"SECRET_ACC decode/parse failed: {e}")
 
+st.write("COMBINED_ID:", COMBINED_ID)
+
+# ── Initialize DriveManager ───────────────────────────────────────────────────
+dm = DriveManager(SECRET_ACC)
+
+# ── File Listing (My Drive + SharedWithMe) Debug ──────────────────────────────
+st.markdown("### 🔄 File Listing (sharedWithMe) Debug")
 try:
-    dm = DriveManager(SECRET_ACC)
-    st.write("✔️ DriveManager initialized")
+    swm_results = dm.drive_service.files().list(
+        q="sharedWithMe",
+        pageSize=20,
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        fields="files(id, name)"
+    ).execute()
+    swm_files = swm_results.get("files", [])
+    if not swm_files:
+        st.warning("No files sharedWithMe visible.")
+    else:
+        st.write("Files shared with this account:")
+        for f in swm_files:
+            st.write(f"- {f['name']} (ID: {f['id']})")
 except Exception as e:
-    st.error(f"❌ DriveManager init failed: {e}")
-    st.stop()
+    st.error(f"sharedWithMe listing failed: {e}")
 
+# ── File Listing Across All Drives Debug ───────────────────────────────────────
+st.markdown("### 📄 File Listing (All Drives) Debug")
 try:
-    meta = dm.drive_service.files().get(fileId=COMBINED_ID, fields="id,name").execute()
-    st.write("✔️ File accessible:", meta["name"])
+    all_results = dm.drive_service.files().list(
+        pageSize=20,
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        fields="files(id, name, driveId)"
+    ).execute()
+    all_files = all_results.get("files", [])
+    if not all_files:
+        st.warning("No files visible (in My Drive or Shared Drives).")
+    else:
+        st.write("Files visible across all drives:")
+        for f in all_files:
+            drv = f.get("driveId") or "MyDrive"
+            st.write(f"- {f['name']}  (ID: {f['id']}, Drive: {drv})")
+except Exception as e:
+    st.error(f"All-drives listing failed: {e}")
+
+# ── File Permissions Debug ─────────────────────────────────────────────────────
+st.markdown("### 🔐 File Permissions Debug")
+try:
+    perms = dm.drive_service.permissions().list(
+        fileId=COMBINED_ID,
+        supportsAllDrives=True,
+        fields="permissions(id, type, role, emailAddress)"
+    ).execute().get("permissions", [])
+    if not perms:
+        st.warning("No permissions entries found for this file.")
+    else:
+        st.write("Permissions on the file:")
+        for p in perms:
+            st.write(f"- {p.get('type')} {p.get('role')} {p.get('emailAddress')}")
 except HttpError as e:
-    st.error(f"❌ File access failed: {e}")
-    st.stop()
+    st.error(f"Permissions lookup failed: {e}")
 
-# ── App Header & Navigation ───────────────────────────────────────────────────
+# ── Drive File Metadata Check ─────────────────────────────────────────────────
+st.markdown("### 🔍 Drive File Metadata Check")
+try:
+    meta = dm.drive_service.files().get(
+        fileId=COMBINED_ID,
+        supportsAllDrives=True,
+        fields="id,name,owners"
+    ).execute()
+    st.success(f"✅ Metadata fetched! File name: {meta['name']} (ID: {meta['id']})")
+    st.write("Owners:", [o.get("emailAddress") for o in meta.get("owners", [])])
+except HttpError as e:
+    st.error(f"Metadata lookup failed: {e}")
+
+# ── CSV Read Debug ─────────────────────────────────────────────────────────────
+st.markdown("### 📥 CSV Read Debug")
+try:
+    df_test = dm.read_csv_file(COMBINED_ID)
+    st.success(f"DriveManager read_csv_file OK (shape: {df_test.shape})")
+except Exception as e:
+    st.error(f"DriveManager read_csv_file failed: {e}")
+
+# ── UI Header & Navigation ────────────────────────────────────────────────────
 st.markdown("""
 <style>
 header { visibility: hidden; }
-.custom-header { position: fixed; top:0; left:0; right:0; height:4.5rem;
-  display:flex; align-items:center; padding:0 1rem; background:#fff;
-  box-shadow:0 1px 2px rgba(0,0,0,0.1); z-index:1000; gap:2rem;
+.custom-header {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: 4.5rem; display: flex; align-items: center;
+    padding: 0 1rem; background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    z-index: 1000; gap: 2rem;
 }
-.custom-header .logo { font-size:1.65rem; font-weight:600; color:#000; }
-.custom-header .nav { display:flex; gap:1rem; }
-.custom-header .nav a { text-decoration:none; color:#262730;
-  font-size:0.9rem; padding-bottom:0.25rem; border-bottom:2px solid transparent;
+.custom-header .logo {
+    font-size: 1.65rem; font-weight: 600; color: #000;
 }
-.custom-header .nav a.active { color:#09c; border-bottom-color:#09c; }
-body>.main { margin-top:4.5rem; }
+.custom-header .nav { display: flex; gap: 1rem; }
+.custom-header .nav a {
+    text-decoration: none; color: #262730;
+    font-size: 0.9rem; padding-bottom: 0.25rem;
+    border-bottom: 2px solid transparent;
+}
+.custom-header .nav a.active { color: #09c; border-bottom-color: #09c; }
+body > .main { margin-top: 4.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
 qs = st.query_params
 page = qs.get("page", "Overview")
 lang = qs.get("lang", "vi")
-if page not in ("Overview","About"): page="Overview"
-if lang not in ("en","vi"): lang="vi"
-toggle_lang = "en" if lang=="vi" else "vi"
+if page not in ("Overview", "About"): page = "Overview"
+if lang not in ("en", "vi"): lang = "vi"
+toggle_lang  = "en" if lang == "vi" else "vi"
 toggle_label = APP_TEXTS[lang]["toggle_button"]
 
 st.markdown(f"""
@@ -68,7 +149,7 @@ st.markdown(f"""
   <div class="logo">BASWAP</div>
   <div class="nav">
     <a href="?page=Overview&lang={lang}" class="{'active' if page=='Overview' else ''}" target="_self">Overview</a>
-    <a href="?page=About&lang={lang}"    class="{'active' if page=='About'    else ''}" target="_self">About</a>
+    <a href="?page=About&lang={lang}" class="{'active' if page=='About'    else ''}" target="_self">About</a>
   </div>
   <div class="nav" style="margin-left:auto;">
     <a href="?page={page}&lang={toggle_lang}" target="_self">{toggle_label}</a>
@@ -78,9 +159,8 @@ st.markdown(f"""
 
 texts = APP_TEXTS[lang]
 
-# ── Main Pages ────────────────────────────────────────────────────────────────
-if page=="Overview":
-    m = folium.Map(location=[10.231140,105.980999], zoom_start=8)
+if page == "Overview":
+    m = folium.Map(location=[10.231140, 105.980999], zoom_start=8)
     st_folium(m, width="100%", height=400)
 
     st.title(texts["app_title"])
@@ -88,31 +168,37 @@ if page=="Overview":
 
     df = combined_data_retrieve()
     df = thingspeak_retrieve(df)
-    first_date = datetime(2025,1,17).date()
-    last_date = df["Timestamp (GMT+7)"].max().date()
+    first_date = datetime(2025, 1, 17).date()
+    last_date  = df["Timestamp (GMT+7)"].max().date()
 
-    date_from,date_to,target_col,agg_functions = sidebar_inputs(df,lang,first_date,last_date)
-    filtered_df = filter_data(df,date_from,date_to)
-    display_statistics(filtered_df,target_col)
+    date_from, date_to, target_col, agg_functions = sidebar_inputs(
+        df, lang, first_date, last_date
+    )
+    filtered_df = filter_data(df, date_from, date_to)
+    display_statistics(filtered_df, target_col)
 
-    def display_view(df,col,title,freq,cols,funcs):
-        st.subheader(title)
-        view_df = df.copy() if freq=="None" else apply_aggregation(df,cols,col,freq,funcs)
-        plot_line_chart(view_df,col,freq)
+    def display_view(df, target_col, view_title, resample_freq, selected_cols, agg_functions):
+        st.subheader(view_title)
+        if resample_freq == "None":
+            view_df = df.copy()
+        else:
+            view_df = apply_aggregation(df, selected_cols, target_col, resample_freq, agg_functions)
+        plot_line_chart(view_df, target_col, resample_freq)
 
-    display_view(filtered_df,target_col,f"{texts['raw_view']} {target_col}","None",COL_NAMES,agg_functions)
-    display_view(filtered_df,target_col,f"{texts['hourly_view']} {target_col}","Hour",COL_NAMES,agg_functions)
-    display_view(filtered_df,target_col,f"{texts['daily_view']} {target_col}","Day",COL_NAMES,agg_functions)
+    display_view(filtered_df, target_col, f"{texts['raw_view']} {target_col}", "None", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col, f"{texts['hourly_view']} {target_col}", "Hour", COL_NAMES, agg_functions)
+    display_view(filtered_df, target_col, f"{texts['daily_view']} {target_col}", "Day", COL_NAMES, agg_functions)
 
     st.subheader(texts["data_table"])
-    tbl = st.multiselect(texts["columns_select"],options=COL_NAMES,default=COL_NAMES)
-    tbl.insert(0,"Timestamp (GMT+7)")
-    st.write(f"{texts['data_dimensions']} ({filtered_df.shape[0]}, {len(tbl)})")
-    st.dataframe(filtered_df[tbl],use_container_width=True)
-    st.button(texts["clear_cache"],help="Clears cache",on_click=st.cache_data.clear)
+    selected_table_cols = st.multiselect(texts["columns_select"], options=COL_NAMES, default=COL_NAMES)
+    selected_table_cols.insert(0, "Timestamp (GMT+7)")
+    st.write(f"{texts['data_dimensions']} ({filtered_df.shape[0]}, {len(selected_table_cols)}).")
+    st.dataframe(filtered_df[selected_table_cols], use_container_width=True)
+
+    st.button(texts["clear_cache"], help="Clears cached data for fresh fetch.", on_click=st.cache_data.clear)
 else:
     st.title("About")
     st.markdown("""
 **BASWAP** is a buoy-based water-quality monitoring dashboard for Vinh Long, Vietnam.
-Add team info, data sources, or contact details here.
+You can add team info, data sources, contact details, or whatever you like here.
 """)
