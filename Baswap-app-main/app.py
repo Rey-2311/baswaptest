@@ -1,137 +1,118 @@
 import streamlit as st
-import base64, binascii, json, re
+import base64, json
 from googleapiclient.errors import HttpError
+import folium
+from streamlit_folium import st_folium
+from datetime import datetime
+
+from config import SECRET_ACC, COMBINED_ID, APP_TEXTS, COL_NAMES
 from utils.drive_handler import DriveManager
-from config import SECRET_ACC, COMBINED_ID
+from data import combined_data_retrieve, thingspeak_retrieve
+from sidebar import sidebar_inputs
+from aggregation import filter_data, apply_aggregation
+from plotting import plot_line_chart, display_statistics
 
-st.set_page_config(page_title="Drive Debug", layout="wide")
+st.set_page_config(page_title="BASWAP", page_icon="💧", layout="wide")
 
-st.markdown("# 🚨 Ultimate Drive Debug Harness")
-
-# 1. SECRET_ACC sanity
-st.markdown("## 1️⃣ SERVICE_ACCOUNT Key Check")
-raw = SECRET_ACC
-st.write("Raw length:", len(raw))
-if "\n" in raw:
-    st.warning("SERVICE_ACCOUNT string contains literal newlines—should be Base64")
+# ── Minimal Authentication Debug ──────────────────────────────────────────────
+st.markdown("## 🔧 Authentication Debug")
 try:
-    b = base64.b64decode(raw, validate=True)
-    info = json.loads(b.decode("utf-8"))
-    st.success("Base64 decode + JSON parse succeeded")
-    st.write("• client_email:", info.get("client_email"))
-    st.write("• project_id: ", info.get("project_id"))
-except (binascii.Error, json.JSONDecodeError) as e:
-    st.error(f"Failed to parse service account key: {e}")
+    svc_info = json.loads(base64.b64decode(SECRET_ACC).decode("utf-8"))
+    st.write("✔️ Parsed key for:", svc_info.get("client_email"))
+except Exception as e:
+    st.error("❌ SERVICE_ACCOUNT invalid or not Base64-encoded")
     st.stop()
 
-# 2. COMBINED_ID sanity
-st.markdown("## 2️⃣ COMBINED_ID Check")
-st.write("Raw COMBINED_ID:", repr(COMBINED_ID))
-if not re.fullmatch(r"[A-Za-z0-9_-]{10,}", COMBINED_ID):
-    st.error("COMBINED_ID doesn’t look like a valid Drive file ID")
-    st.stop()
-
-# 3. Instantiate DriveManager
-st.markdown("## 3️⃣ DriveManager Initialization")
 try:
     dm = DriveManager(SECRET_ACC)
-    st.success("DriveManager initialized with given key")
-    scopes = getattr(dm.creds, "scopes", None)
-    st.write("Authorized scopes:", scopes)
+    st.write("✔️ DriveManager initialized")
 except Exception as e:
-    st.error(f"DriveManager init failed: {e}")
+    st.error(f"❌ DriveManager init failed: {e}")
     st.stop()
 
-# 4. List root files (My Drive)
-st.markdown("## 4️⃣ My Drive Listing")
 try:
-    my = dm.drive_service.files().list(
-        pageSize=10,
-        fields="files(id,name,trashed)",
-        q="trashed=false and 'me' in owners"
-    ).execute().get("files", [])
-    if not my:
-        st.warning("No visible files in My Drive owned by this account")
-    else:
-        for f in my:
-            st.write(f"- {f['name']} ({f['id']})")
-except Exception as e:
-    st.error(f"My Drive list failed: {e}")
-
-# 5. List files sharedWithMe
-st.markdown("## 5️⃣ sharedWithMe Listing")
-try:
-    swm = dm.drive_service.files().list(
-        q="sharedWithMe",
-        pageSize=10,
-        supportsAllDrives=True,
-        includeItemsFromAllDrives=True,
-        fields="files(id,name)"
-    ).execute().get("files", [])
-    if not swm:
-        st.warning("No files in sharedWithMe")
-    else:
-        for f in swm:
-            st.write(f"- {f['name']} ({f['id']})")
-except Exception as e:
-    st.error(f"sharedWithMe list failed: {e}")
-
-# 6. List shared drives
-st.markdown("## 6️⃣ Shared Drives Listing")
-try:
-    drives = dm.drive_service.drives().list().execute().get("drives", [])
-    if not drives:
-        st.warning("No Shared Drives visible")
-    else:
-        for d in drives:
-            st.write(f"- {d['name']} (ID: {d['id']})")
-except Exception as e:
-    st.error(f"Shared Drives list failed: {e}")
-
-# 7. List all drives
-st.markdown("## 7️⃣ All Drives Listing (1st 20)")
-try:
-    allf = dm.drive_service.files().list(
-        pageSize=20,
-        supportsAllDrives=True,
-        includeItemsFromAllDrives=True,
-        fields="files(id,name,driveId)"
-    ).execute().get("files", [])
-    if not allf:
-        st.warning("No files visible across all drives")
-    else:
-        for f in allf:
-            st.write(f"- {f['name']} ({f['id']}) drive: {f.get('driveId')}")
-except Exception as e:
-    st.error(f"All-drives list failed: {e}")
-
-# 8. Permissions on the target file
-st.markdown("## 8️⃣ Permissions on COMBINED_ID")
-try:
-    perms = dm.drive_service.permissions().list(
-        fileId=COMBINED_ID,
-        supportsAllDrives=True,
-        fields="permissions(id,type,role,emailAddress)"
-    ).execute().get("permissions", [])
-    if not perms:
-        st.warning("No permissions found on target file")
-    else:
-        for p in perms:
-            st.write(f"- {p['type']} {p['role']} {p.get('emailAddress')}")
+    meta = dm.drive_service.files().get(fileId=COMBINED_ID, fields="id,name").execute()
+    st.write("✔️ File accessible:", meta["name"])
 except HttpError as e:
-    st.error(f"Permissions fetch failed: {e}")
+    st.error(f"❌ File access failed: {e}")
+    st.stop()
 
-# 9. Metadata on the target file
-st.markdown("## 9️⃣ Metadata on COMBINED_ID")
-try:
-    md = dm.drive_service.files().get(
-        fileId=COMBINED_ID,
-        supportsAllDrives=True,
-        fields="id,name,owners,trashed"
-    ).execute()
-    st.success(f"Metadata fetched: {md['name']} (trashed={md['trashed']})")
-    st.write("Owners:", [o["emailAddress"] for o in md.get("owners",[])])
-except HttpError as e:
-    st.error(f"Metadata fetch failed: {e}")
+# ── App Header & Navigation ───────────────────────────────────────────────────
+st.markdown("""
+<style>
+header { visibility: hidden; }
+.custom-header { position: fixed; top:0; left:0; right:0; height:4.5rem;
+  display:flex; align-items:center; padding:0 1rem; background:#fff;
+  box-shadow:0 1px 2px rgba(0,0,0,0.1); z-index:1000; gap:2rem;
+}
+.custom-header .logo { font-size:1.65rem; font-weight:600; color:#000; }
+.custom-header .nav { display:flex; gap:1rem; }
+.custom-header .nav a { text-decoration:none; color:#262730;
+  font-size:0.9rem; padding-bottom:0.25rem; border-bottom:2px solid transparent;
+}
+.custom-header .nav a.active { color:#09c; border-bottom-color:#09c; }
+body>.main { margin-top:4.5rem; }
+</style>
+""", unsafe_allow_html=True)
 
-st.stop()  # halt here so the rest of your app doesn’t run until we see results
+qs = st.query_params
+page = qs.get("page", "Overview")
+lang = qs.get("lang", "vi")
+if page not in ("Overview","About"): page="Overview"
+if lang not in ("en","vi"): lang="vi"
+toggle_lang = "en" if lang=="vi" else "vi"
+toggle_label = APP_TEXTS[lang]["toggle_button"]
+
+st.markdown(f"""
+<div class="custom-header">
+  <div class="logo">BASWAP</div>
+  <div class="nav">
+    <a href="?page=Overview&lang={lang}" class="{'active' if page=='Overview' else ''}" target="_self">Overview</a>
+    <a href="?page=About&lang={lang}"    class="{'active' if page=='About'    else ''}" target="_self">About</a>
+  </div>
+  <div class="nav" style="margin-left:auto;">
+    <a href="?page={page}&lang={toggle_lang}" target="_self">{toggle_label}</a>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+texts = APP_TEXTS[lang]
+
+# ── Main Pages ────────────────────────────────────────────────────────────────
+if page=="Overview":
+    m = folium.Map(location=[10.231140,105.980999], zoom_start=8)
+    st_folium(m, width="100%", height=400)
+
+    st.title(texts["app_title"])
+    st.markdown(texts["description"])
+
+    df = combined_data_retrieve()
+    df = thingspeak_retrieve(df)
+    first_date = datetime(2025,1,17).date()
+    last_date = df["Timestamp (GMT+7)"].max().date()
+
+    date_from,date_to,target_col,agg_functions = sidebar_inputs(df,lang,first_date,last_date)
+    filtered_df = filter_data(df,date_from,date_to)
+    display_statistics(filtered_df,target_col)
+
+    def display_view(df,col,title,freq,cols,funcs):
+        st.subheader(title)
+        view_df = df.copy() if freq=="None" else apply_aggregation(df,cols,col,freq,funcs)
+        plot_line_chart(view_df,col,freq)
+
+    display_view(filtered_df,target_col,f"{texts['raw_view']} {target_col}","None",COL_NAMES,agg_functions)
+    display_view(filtered_df,target_col,f"{texts['hourly_view']} {target_col}","Hour",COL_NAMES,agg_functions)
+    display_view(filtered_df,target_col,f"{texts['daily_view']} {target_col}","Day",COL_NAMES,agg_functions)
+
+    st.subheader(texts["data_table"])
+    tbl = st.multiselect(texts["columns_select"],options=COL_NAMES,default=COL_NAMES)
+    tbl.insert(0,"Timestamp (GMT+7)")
+    st.write(f"{texts['data_dimensions']} ({filtered_df.shape[0]}, {len(tbl)})")
+    st.dataframe(filtered_df[tbl],use_container_width=True)
+    st.button(texts["clear_cache"],help="Clears cache",on_click=st.cache_data.clear)
+else:
+    st.title("About")
+    st.markdown("""
+**BASWAP** is a buoy-based water-quality monitoring dashboard for Vinh Long, Vietnam.
+Add team info, data sources, or contact details here.
+""")
